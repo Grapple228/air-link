@@ -1,15 +1,12 @@
 [package]
-name = "lib-core"
-edition.workspace = true
+name = "air-client"
 version.workspace = true
+edition.workspace = true
 license.workspace = true
-authors.workspace = true
 description.workspace = true
-repository.workspace = true
+authors.workspace = true
 readme.workspace = true
-
-[lib]
-doctest = false
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -20,16 +17,30 @@ grapple_db = { workspace = true }
 grapple_utils = { workspace = true }
 
 # -- App Libs
-# lib-utils = { path = "../../libs/lib-utils" }
+lib-codec = { path = "../../libs/lib-codec" }
+lib-models = { path = "../../libs/lib-models" }
+
+# Websocket
+tokio-tungstenite = { workspace = true }
+
+# Mouse and Keyboard events
+enigo = {workspace = true}
+input = "0.9"
+libc = "0.2"
+
 # -- Async
+futures = {workspace = true }
 tokio = { workspace = true }
+
 # -- Tracing
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-# -- Others
+
+# -- Other
 derive_more = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 httpc-test = { workspace = true }
 serial_test = { workspace = true }
+chrono = "0.4"

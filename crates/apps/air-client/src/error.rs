@@ -1,8 +1,14 @@
+use derive_more::From;
+
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, From)]
 pub enum Error {
-    CtxCannotNewRootCtx,
+    #[from]
+    Tungstenite(tokio_tungstenite::tungstenite::Error),
+
+    #[from]
+    Io(std::io::Error),
 }
 
 // region:    --- Error Boilerplate

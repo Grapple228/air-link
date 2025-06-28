@@ -1,28 +1,18 @@
-use derive_more::derive::From;
-use grapple_utils::cuuid::uuid::Uuid;
-
-use super::store;
+use derive_more::From;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, From)]
 pub enum Error {
-    EntityNotFound {
-        entity: &'static str,
-        id: Uuid,
-    },
-    ListLimitOverMax {
-        max: i64,
-        actual: i64,
-    },
-    CreateLimitOverMax {
-        max: i64,
-        actual: i64,
-    },
-    // -- Modules
     #[from]
-    Store(store::Error),
-    // -- Externals
+    Enigo(enigo::InputError),
+    #[from]
+    EnigoConfig(enigo::NewConError),
+    #[from]
+    Tungstenite(tokio_tungstenite::tungstenite::Error),
+
+    #[from]
+    Io(std::io::Error),
 }
 
 // region:    --- Error Boilerplate

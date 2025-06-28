@@ -1,13 +1,9 @@
-use derive_more::From;
-use lib_core::model;
-
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, From)]
+#[derive(Debug)]
 pub enum Error {
-    // -- Modules
-    #[from]
-    Model(model::Error),
+    Encode,
+    Decode,
 }
 
 // region:    --- Error Boilerplate

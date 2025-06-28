@@ -14,11 +14,13 @@ unused = { level = "allow", priority = -1 } # For exploratory dev.
 [workspace]
 resolver = "2"
 members = [
-    # -- Application Libraries
-    "crates/libs/lib-core",  # e.g., model, ctx, config.
+    # -- Apps
+    "crates/apps/air-client", 
+    "crates/apps/air-server",
 
-    # -- Application Services
-    "crates/services/service",
+    # -- Application Libraries
+    "crates/libs/lib-codec",
+    "crates/libs/lib-models",  
 
     # -- Tools
     # "crates/tools/gen-key",
@@ -29,11 +31,23 @@ members = [
 grapple_utils = { version = "*", features = ["b64", "b58", "cuuid"] }
 grapple_db = { version = "*", features = [ "redis"] }
 
+# Websocket
+tokio-tungstenite = { version = "0.27"}
+
+# Mouse and Keyboard events
+enigo = {version = "0.5", features = ["wayland"]}
+
+# Bytes serialization and deserialization
+bincode = {version = "2", features = []}
+
 # Async
 tokio = { version = "1", features = ["full"] }
+futures = { version = "0.3"}
+
 # Tracing
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 #Other
 derive_more = {version = "1", features = ["from"] }
 
