@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 # -- My Libs
-grapple_db = { workspace = true }
 grapple_utils = { workspace = true }
 
 # -- App Libs

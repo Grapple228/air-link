@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 # -- My Libs
-grapple_db = { workspace = true }
 grapple_utils = { workspace = true }
 
 # -- App Libs
@@ -25,8 +24,10 @@ tokio-tungstenite = { workspace = true }
 
 # Mouse and Keyboard events
 enigo = {workspace = true}
-input = "0.9"
-libc = "0.2"
+wayland-client = "0.31"  
+wayland-protocols = "0.32"
+evdev = "0.13"
+tempfile = "3.20"
 
 # -- Async
 futures = {workspace = true }

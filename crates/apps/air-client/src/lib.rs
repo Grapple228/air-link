@@ -5,6 +5,7 @@ use tracing_subscriber::EnvFilter;
 
 // -- Modules
 mod error;
+mod wayland;
 
 // -- Flatten
 pub use error::{Error, Result};

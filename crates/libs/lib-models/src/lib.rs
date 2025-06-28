@@ -4,6 +4,7 @@ use tokio_tungstenite::tungstenite::{Bytes, Message};
 
 #[derive(Debug, Clone, PartialEq, Encode, Decode)]
 pub enum Command {
+    SetMouse { x: i32, y: i32 },
     MoveMouse { x: i32, y: i32 },
     KeyCode(u16),
     InputText(String),

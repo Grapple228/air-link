@@ -29,7 +29,6 @@ members = [
 [workspace.dependencies]
 # My libs
 grapple_utils = { version = "*", features = ["b64", "b58", "cuuid"] }
-grapple_db = { version = "*", features = [ "redis"] }
 
 # Websocket
 tokio-tungstenite = { version = "0.27"}

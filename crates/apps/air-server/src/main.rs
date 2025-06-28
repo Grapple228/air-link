@@ -85,6 +85,10 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
     match command {
         Command::MoveMouse { x, y } => {
             println!("Move mouse");
+            enigo.move_mouse(x, y, enigo::Coordinate::Rel)?;
+        }
+        Command::SetMouse { x, y } => {
+            println!("Set mouse");
             enigo.move_mouse(x, y, enigo::Coordinate::Abs)?;
         }
         Command::KeyCode(keycode) => enigo.raw(keycode, enigo::Direction::Press)?,
