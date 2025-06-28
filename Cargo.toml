@@ -1,0 +1,43 @@
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = ""
+authors = ["grapple228 <greenapple228882@yandex.ru>"]
+readme = "readme.md"
+repository = "https://github.com/grapple228/air-link.git"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused = { level = "allow", priority = -1 } # For exploratory dev.
+
+[workspace]
+resolver = "2"
+members = [
+    # -- Application Libraries
+    "crates/libs/lib-core",  # e.g., model, ctx, config.
+
+    # -- Application Services
+    "crates/services/service",
+
+    # -- Tools
+    # "crates/tools/gen-key",
+]
+
+[workspace.dependencies]
+# My libs
+grapple_utils = { version = "*", features = ["b64", "b58", "cuuid"] }
+grapple_db = { version = "*", features = [ "redis"] }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+#Other
+derive_more = {version = "1", features = ["from"] }
+
+# Dev
+anyhow = "1"
+httpc-test = "0.1"
+serial_test = "2"
