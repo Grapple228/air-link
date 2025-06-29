@@ -10,6 +10,7 @@ use std::{
 use futures::{
     channel::mpsc::{self, channel, Receiver, Sender},
     future::{poll_fn, select, Either},
+    stream::SplitSink,
     SinkExt, StreamExt, TryFutureExt,
 };
 use lib_models::{Command, MouseButton, MouseScroll};
@@ -322,9 +323,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
             } => {
                 println!("{serial} {:?} {:?}", surface, keys);
             }
-            wl_keyboard::Event::Leave { serial, surface } => {
-                println!("leave {serial} {:?} ", surface);
-            }
+            wl_keyboard::Event::Leave { serial, surface } => {}
             wl_keyboard::Event::Key {
                 serial,
                 time,
@@ -349,7 +348,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
                 group,
             } => {
                 println!(
-                    "modifiers {serial} {} {} {} ",
+                    "modifiers {} {} {} ",
                     mods_depressed, mods_latched, mods_locked
                 );
             }
@@ -408,7 +407,7 @@ fn map_cord(cord: i32, resolution_rate: f64) -> i32 {
 impl State {
     pub async fn handle(
         &mut self,
-        stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+        write: &mut SplitSink<&mut WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
         resolution_rate: f64,
     ) -> Result<()> {
         let event = &self.event;
@@ -460,7 +459,7 @@ impl State {
             AppEvent::KeyReleased(key) => Command::KeyReleased(*key),
         };
 
-        stream.send(command.into()).await?;
+        write.send(command.into()).await?;
 
         self.event = AppEvent::None;
 
@@ -471,6 +470,8 @@ impl State {
 pub async fn init_wayland(
     mut stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
 ) -> Result<()> {
+    let (mut write, mut read) = stream.split();
+
     // Initialize Wayland connection
     let conn = Connection::connect_to_env().unwrap();
 
@@ -495,7 +496,7 @@ pub async fn init_wayland(
 
     while state.running {
         event_queue.blocking_dispatch(&mut state)?;
-        state.handle(&mut stream, resolution_rate).await?;
+        state.handle(&mut write, resolution_rate).await?;
     }
 
     Ok(())
