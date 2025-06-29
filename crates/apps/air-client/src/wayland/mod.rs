@@ -276,12 +276,14 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
                     return;
                 };
 
+                println!("{time} {value}");
+
                 match axis {
                     wl_pointer::Axis::VerticalScroll => {
-                        state.event = AppEvent::ScrollVertical(value);
+                        state.event = AppEvent::ScrollVertical(value as i32);
                     }
                     wl_pointer::Axis::HorizontalScroll => {
-                        state.event = AppEvent::ScrollHorizontal(value);
+                        state.event = AppEvent::ScrollHorizontal(value as i32);
                     }
                     _ => {}
                 }
@@ -341,8 +343,8 @@ enum AppEvent {
     MouseLeave,
     MouseButtonPressed(MouseButton),
     MouseButtonReleased(MouseButton),
-    ScrollHorizontal(f64),
-    ScrollVertical(f64),
+    ScrollHorizontal(i32),
+    ScrollVertical(i32),
 }
 
 impl State {
@@ -392,7 +394,7 @@ impl State {
                 Command::MouseScroll(MouseScroll::Horizontal(*value))
             }
             AppEvent::ScrollVertical(value) => {
-                println!("Vertival scroll: {}", value);
+                println!("Vertical scroll: {}", value);
 
                 Command::MouseScroll(MouseScroll::Vertical(*value))
             }

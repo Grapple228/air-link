@@ -26,6 +26,6 @@ impl MouseButton {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum MouseScroll {
-    Vertical(f64),
-    Horizontal(f64),
+    Vertical(i32),
+    Horizontal(i32),
 }
