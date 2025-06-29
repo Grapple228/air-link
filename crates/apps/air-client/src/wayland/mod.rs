@@ -1,50 +1,32 @@
-use std::{fs::File, os::unix::io::AsFd};
+use super::Result;
+use std::{
+    fs::File,
+    os::{fd::OwnedFd, unix::io::AsFd},
+    sync::Arc,
+    task::{Context, Poll},
+    time::Duration,
+};
 
+use futures::{
+    channel::mpsc::{self, channel, Receiver, Sender},
+    future::{poll_fn, select, Either},
+    SinkExt, StreamExt, TryFutureExt,
+};
+use lib_models::Command;
+use tokio::{net::TcpStream, runtime::Runtime, sync::Mutex, time::sleep};
+use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{
+    backend::{self, Backend},
     delegate_noop,
     protocol::{
-        wl_buffer, wl_compositor, wl_keyboard, wl_pointer, wl_registry,
+        wl_buffer, wl_callback, wl_compositor, wl_display, wl_keyboard, wl_pointer, wl_registry,
         wl_seat::{self, Capability},
         wl_shm, wl_shm_pool, wl_surface, wl_touch,
     },
-    Connection, Dispatch, QueueHandle, WEnum,
+    Connection, Dispatch, EventQueue, Proxy, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
-
-pub fn tst() {
-    let conn = Connection::connect_to_env().unwrap();
-
-    let mut event_queue = conn.new_event_queue();
-    let qhandle = event_queue.handle();
-
-    let display = conn.display();
-    display.get_registry(&qhandle, ());
-
-    let mut state = State {
-        running: true,
-        base_surface: None,
-        buffer: None,
-        wm_base: None,
-        xdg_surface: None,
-        configured: false,
-    };
-
-    println!("Starting the example window app, press <ESC> to quit.");
-
-    while state.running {
-        event_queue.blocking_dispatch(&mut state).unwrap();
-    }
-}
-
-struct State {
-    running: bool,
-    base_surface: Option<wl_surface::WlSurface>,
-    buffer: Option<wl_buffer::WlBuffer>,
-    wm_base: Option<xdg_wm_base::XdgWmBase>,
-    xdg_surface: Option<(xdg_surface::XdgSurface, xdg_toplevel::XdgToplevel)>,
-    configured: bool,
-}
 
 impl Dispatch<wl_registry::WlRegistry, ()> for State {
     fn event(
@@ -61,6 +43,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
         {
             match &interface[..] {
                 "wl_compositor" => {
+                    println!("wl_compositor");
+
                     let compositor =
                         registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
                     let surface = compositor.create_surface(qh, ());
@@ -71,6 +55,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                     }
                 }
                 "wl_shm" => {
+                    println!("wl_shm");
+
                     let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ());
 
                     let (init_w, init_h) = (320, 240);
@@ -96,9 +82,13 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                     }
                 }
                 "wl_seat" => {
-                    registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ());
+                    println!("wl_seat");
+
+                    let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ());
                 }
                 "xdg_wm_base" => {
+                    println!("xdg_wm_base");
+
                     let wm_base = registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ());
                     state.wm_base = Some(wm_base);
 
@@ -120,6 +110,8 @@ delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
 delegate_noop!(State: ignore wl_buffer::WlBuffer);
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
+    println!("draw");
+
     use std::{cmp::min, io::Write};
     let mut buf = std::io::BufWriter::new(tmp);
     for y in 0..buf_y {
@@ -137,6 +129,8 @@ fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
 
 impl State {
     fn init_xdg_surface(&mut self, qh: &QueueHandle<State>) {
+        println!("init_xdg_surface");
+
         let wm_base = self.wm_base.as_ref().unwrap();
         let base_surface = self.base_surface.as_ref().unwrap();
 
@@ -159,6 +153,8 @@ impl Dispatch<xdg_wm_base::XdgWmBase, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        println!("xdg_wm_base");
+
         if let xdg_wm_base::Event::Ping { serial } = event {
             wm_base.pong(serial);
         }
@@ -174,6 +170,8 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        println!("xdg_surface");
+
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(serial);
             state.configured = true;
@@ -195,6 +193,8 @@ impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        println!("xdg_toplevel");
+
         if let xdg_toplevel::Event::Close = event {
             state.running = false;
         }
@@ -210,6 +210,8 @@ impl Dispatch<wl_seat::WlSeat, ()> for State {
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
+        println!("seat");
+
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(capabilities),
         } = event
@@ -234,7 +236,43 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        println!("pointer event");
+        match event {
+            wl_pointer::Event::Enter {
+                serial,
+                surface,
+                surface_x,
+                surface_y,
+            } => {
+                println!("mouse enter");
+                state.set_event(AppEvent::MouseLeave);
+            }
+            wl_pointer::Event::Leave { serial, surface } => {
+                println!("mouse leave");
+                state.set_event(AppEvent::MouseLeave);
+            }
+            wl_pointer::Event::Motion {
+                time,
+                surface_x,
+                surface_y,
+            } => {
+                println!("mouse move");
+                state.set_event(AppEvent::MouseMove {
+                    x: surface_x as i32,
+                    y: surface_y as i32,
+                });
+            }
+            wl_pointer::Event::Button {
+                serial,
+                time,
+                button,
+                state,
+            } => {
+                println!("mouse button");
+            }
+            _ => {
+                println!("other")
+            }
+        }
     }
 }
 
@@ -254,4 +292,109 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
             }
         }
     }
+}
+
+#[derive(Debug, Default)]
+struct State {
+    running: bool,
+    base_surface: Option<wl_surface::WlSurface>,
+    buffer: Option<wl_buffer::WlBuffer>,
+    wm_base: Option<xdg_wm_base::XdgWmBase>,
+    xdg_surface: Option<(xdg_surface::XdgSurface, xdg_toplevel::XdgToplevel)>,
+    configured: bool,
+
+    event: Option<AppEvent>,
+    x: i32,
+    y: i32,
+    enter_processed: bool,
+    leave_processed: bool,
+}
+
+impl State {
+    fn set_event(&mut self, event: AppEvent) {
+        self.event.insert(event);
+    }
+}
+
+#[derive(Debug)]
+enum AppEvent {
+    MouseMove { x: i32, y: i32 },
+    MouseEnter,
+    MouseLeave,
+}
+
+impl State {
+    pub async fn handle(
+        &mut self,
+        stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    ) -> Result<()> {
+        let Some(event) = &self.event else {
+            return Ok(());
+        };
+
+        println!("handle {event:?}");
+
+        let command: Command = match event {
+            AppEvent::MouseMove { x, y } => {
+                println!("Previous {} {}", self.x, self.y);
+                println!("New {} {}", x, y);
+
+                let x_moved = x - self.x;
+                let y_moved = y - self.y;
+
+                self.x += x_moved;
+                self.y += y_moved;
+
+                println!("Moved by {x_moved} {y_moved}");
+
+                if !self.enter_processed {
+                    Command::SetMouse { x: *x, y: *y }
+                } else {
+                    Command::MoveMouse {
+                        x: x_moved,
+                        y: y_moved,
+                    }
+                }
+            }
+            AppEvent::MouseEnter => {
+                self.enter_processed = false;
+                return Ok(());
+            }
+            AppEvent::MouseLeave => {
+                self.leave_processed = false;
+                return Ok(());
+            }
+        };
+
+        stream.send(command.into()).await?;
+
+        self.event = None;
+
+        Ok(())
+    }
+}
+
+pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>) -> Result<()> {
+    // Initialize Wayland connection
+    let conn = Connection::connect_to_env().unwrap();
+
+    let mut event_queue: EventQueue<State> = conn.new_event_queue();
+    let qhandle = event_queue.handle();
+
+    let display = conn.display();
+    display.get_registry(&qhandle, ());
+
+    println!("Starting the example window app, press <ESC> to quit.");
+
+    let mut state = State {
+        running: true,
+        ..Default::default()
+    };
+
+    while state.running {
+        event_queue.blocking_dispatch(&mut state)?;
+        state.handle(&mut stream).await?;
+    }
+
+    Ok(())
 }

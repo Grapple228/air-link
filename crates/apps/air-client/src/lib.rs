@@ -4,11 +4,13 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 // -- Modules
+mod delegator;
 mod error;
 mod wayland;
 
 // -- Flatten
 pub use error::{Error, Result};
+pub use wayland::init_wayland;
 
 // endregion: --- Modules
 

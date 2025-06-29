@@ -17,6 +17,13 @@ impl Into<Message> for &Command {
     }
 }
 
+impl Into<Message> for Command {
+    fn into(self) -> Message {
+        let data = encode(&self).unwrap();
+        Message::Binary(data.into())
+    }
+}
+
 impl From<Message> for Command {
     fn from(value: Message) -> Self {
         decode(&value.into_data()).unwrap()

@@ -1,6 +1,4 @@
-mod wayland;
-
-use air_client::Result;
+use air_client::{init_wayland, Result};
 use futures::sink::SinkExt;
 use lib_models::Command;
 use tokio::time::sleep;
@@ -23,13 +21,16 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    wayland::tst();
-    return Ok(());
-
     // Подключение к серверу
     let (mut ws_stream, _) = connect_async("ws://192.168.0.150:5555").await?;
 
     println!("Connected to the WebSocket server");
+
+    // Получаем параметры дисплея
+
+    // Инициализируем дисплей
+
+    init_wayland(ws_stream).await?;
 
     let mut commands: Vec<Command> = (1..500)
         .map(|_| Command::MoveMouse { x: 1, y: 0 })
@@ -37,20 +38,18 @@ async fn main() -> Result<()> {
 
     commands.insert(0, Command::SetMouse { x: 1000, y: 700 });
 
-    for command in &commands {
-        // sleep(Duration::from_micros(10)).await;
+    // for command in &commands {
+    //     // Отправка команды на сервер
+    //     if let Err(e) = ws_stream.send(command.into()).await {
+    //         eprintln!("Error sending message: {:?}", e);
+    //         break;
+    //     }
+    //     println!("Sent command: {:?}", command);
+    // }
 
-        // Отправка команды на сервер
-        if let Err(e) = ws_stream.send(command.into()).await {
-            eprintln!("Error sending message: {:?}", e);
-            break;
-        }
-        println!("Sent command: {:?}", command);
-    }
-
-    // Закрытие соединения
-    ws_stream.close(None).await?;
-    println!("WebSocket connection closed");
+    // // Закрытие соединения
+    // ws_stream.close(None).await?;
+    // println!("WebSocket connection closed");
 
     Ok(())
 }

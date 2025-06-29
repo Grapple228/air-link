@@ -8,6 +8,12 @@ pub enum Error {
     Tungstenite(tokio_tungstenite::tungstenite::Error),
 
     #[from]
+    Dispatch(wayland_client::DispatchError),
+
+    #[from]
+    Connect(wayland_client::ConnectError),
+
+    #[from]
     Io(std::io::Error),
 }
 
