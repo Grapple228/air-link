@@ -311,10 +311,53 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key { key, .. } = event {
-            if key == 1 {
-                // ESC key
-                state.running = false;
+        match event {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                println!("keymap {:?} {:?} {}", format, fd, size);
+            }
+            wl_keyboard::Event::Enter {
+                serial,
+                surface,
+                keys,
+            } => {
+                println!("{serial} {:?} {:?}", surface, keys);
+            }
+            wl_keyboard::Event::Leave { serial, surface } => {
+                println!("leave {serial} {:?} ", surface);
+            }
+            wl_keyboard::Event::Key {
+                serial,
+                time,
+                key,
+                state: key_state,
+            } => {
+                let WEnum::Value(key_state) = key_state else {
+                    return;
+                };
+
+                match key_state {
+                    wl_keyboard::KeyState::Released => state.event = AppEvent::KeyReleased(key),
+                    wl_keyboard::KeyState::Pressed => state.event = AppEvent::KeyPressed(key),
+                    _ => {}
+                }
+            }
+            wl_keyboard::Event::Modifiers {
+                serial,
+                mods_depressed,
+                mods_latched,
+                mods_locked,
+                group,
+            } => {
+                println!(
+                    "modifiers {serial} {} {} {} ",
+                    mods_depressed, mods_latched, mods_locked
+                );
+            }
+            wl_keyboard::Event::RepeatInfo { rate, delay } => {
+                println!("repeat {rate} {delay}");
+            }
+            _ => {
+                println!("other");
             }
         }
     }
@@ -352,6 +395,9 @@ enum AppEvent {
     MouseButtonReleased(MouseButton),
     ScrollHorizontal(i32),
     ScrollVertical(i32),
+
+    KeyPressed(u32),
+    KeyReleased(u32),
 }
 
 #[inline]
@@ -366,7 +412,6 @@ impl State {
         resolution_rate: f64,
     ) -> Result<()> {
         let event = &self.event;
-        // println!("handle {event:?}");
 
         let command: Command = match event {
             AppEvent::None => {
@@ -411,6 +456,8 @@ impl State {
                 Command::MouseScroll(MouseScroll::Horizontal(*value))
             }
             AppEvent::ScrollVertical(value) => Command::MouseScroll(MouseScroll::Vertical(*value)),
+            AppEvent::KeyPressed(key) => Command::KeyPressed(*key),
+            AppEvent::KeyReleased(key) => Command::KeyReleased(*key),
         };
 
         stream.send(command.into()).await?;
@@ -421,7 +468,9 @@ impl State {
     }
 }
 
-pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>) -> Result<()> {
+pub async fn init_wayland(
+    mut stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+) -> Result<()> {
     // Initialize Wayland connection
     let conn = Connection::connect_to_env().unwrap();
 

@@ -30,26 +30,10 @@ async fn main() -> Result<()> {
 
     // Инициализируем дисплей
 
-    init_wayland(ws_stream).await?;
+    init_wayland(&mut ws_stream).await?;
 
-    let mut commands: Vec<Command> = (1..500)
-        .map(|_| Command::MoveMouse { x: 1, y: 0 })
-        .collect();
-
-    commands.insert(0, Command::SetMouse { x: 1000, y: 700 });
-
-    // for command in &commands {
-    //     // Отправка команды на сервер
-    //     if let Err(e) = ws_stream.send(command.into()).await {
-    //         eprintln!("Error sending message: {:?}", e);
-    //         break;
-    //     }
-    //     println!("Sent command: {:?}", command);
-    // }
-
-    // // Закрытие соединения
-    // ws_stream.close(None).await?;
-    // println!("WebSocket connection closed");
+    ws_stream.close(None).await?;
+    println!("WebSocket connection closed");
 
     Ok(())
 }

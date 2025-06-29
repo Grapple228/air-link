@@ -1,6 +1,6 @@
 use air_server::Result;
 use chrono::Utc;
-use enigo::{Coordinate, Enigo, Keyboard, Mouse, Settings};
+use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
 use futures::{stream::StreamExt, SinkExt};
 use lib_models::{Command, MouseButton};
 use tokio::net::{TcpListener, TcpStream};
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
 }
 
 async fn handle_connection(stream: TcpStream) -> Result<()> {
-    let settings = Settings{
+    let settings = Settings {
         windows_subject_to_mouse_speed_and_acceleration_level: true,
         ..Default::default()
     };
@@ -84,7 +84,6 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
         Command::SetMouse { x, y } => {
             move_mouse(enigo, x, y, MoveType::Immediate)?;
         }
-        Command::KeyCode(keycode) => enigo.raw(keycode, enigo::Direction::Press)?,
         Command::InputText(text) => enigo.text(&text)?,
         Command::MouseButtonPressed(mouse_button) => {
             let (button, direction) = map_mouse_button(mouse_button, true);
@@ -102,13 +101,22 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
                 enigo.scroll(value.signum(), enigo::Axis::Horizontal)?
             }
         },
+        Command::KeyPressed(keycode) => enigo.raw(keycode as u16, enigo::Direction::Press)?,
+        Command::KeyReleased(keycode) => enigo.raw(keycode as u16, enigo::Direction::Release)?,
     }
 
     Ok(())
 }
 
-fn map_mouse_button(mouse_button: MouseButton, is_press: bool) -> (enigo::Button, enigo::Direction) {
-    let direction = if is_press {enigo::Direction::Press} else {enigo::Direction::Release};
+fn map_mouse_button(
+    mouse_button: MouseButton,
+    is_press: bool,
+) -> (enigo::Button, enigo::Direction) {
+    let direction = if is_press {
+        enigo::Direction::Press
+    } else {
+        enigo::Direction::Release
+    };
     let button = match mouse_button {
         MouseButton::LEFT => enigo::Button::Left,
         MouseButton::RIGHT => enigo::Button::Right,
