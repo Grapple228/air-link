@@ -6,7 +6,7 @@ use lib_codec::{decode, encode};
 use tokio_tungstenite::tungstenite::{Bytes, Message};
 
 pub use keyboard::KeyboardButton;
-pub use mouse::MouseButton;
+pub use mouse::{MouseButton, MouseScroll};
 
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum Command {
@@ -16,6 +16,7 @@ pub enum Command {
     InputText(String),
     MouseButtonPressed(MouseButton),
     MouseButtonReleased(MouseButton),
+    MouseScroll(MouseScroll),
 }
 
 impl Into<Message> for &Command {

@@ -88,6 +88,14 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
         Command::MouseButtonReleased(mouse_button) => {
             enigo.button(enigo::Button::Left, enigo::Direction::Release)?
         }
+        Command::MouseScroll(mouse_scroll) => match mouse_scroll {
+            lib_models::MouseScroll::Vertical(value) => {
+                enigo.scroll(value as i32, enigo::Axis::Vertical)?
+            }
+            lib_models::MouseScroll::Horizontal(value) => {
+                enigo.scroll(value as i32, enigo::Axis::Horizontal)?
+            }
+        },
     }
 
     Ok(())

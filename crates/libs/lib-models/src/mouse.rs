@@ -6,15 +6,26 @@ pub enum MouseButton {
     LEFT,
     RIGHT,
     MIDDLE,
+    MOUSE4,
+    MOUSE5,
 }
 
-impl From<u32> for MouseButton {
-    fn from(value: u32) -> Self {
+impl MouseButton {
+    pub fn from_linux_code(value: u32) -> Self {
         match value {
-            272 => Self::LEFT,
-            273 => Self::RIGHT,
-            274 => Self::MIDDLE,
-            _ => panic!("Unsupported mouse keycode"),
+            272 => Self::LEFT,   // BTN_LEFT
+            273 => Self::RIGHT,  // BTN_RIGHT
+            274 => Self::MIDDLE, // BTN_MIDDLE
+            275 => Self::MOUSE4, // BTN_BACK
+            276 => Self::MOUSE5, // BTN_FORWARD
+            _ => panic!("Unsupported mouse button code: {}", value),
         }
     }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Encode, Decode)]
+pub enum MouseScroll {
+    Vertical(f64),
+    Horizontal(f64),
 }

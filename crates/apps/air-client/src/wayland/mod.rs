@@ -12,7 +12,7 @@ use futures::{
     future::{poll_fn, select, Either},
     SinkExt, StreamExt, TryFutureExt,
 };
-use lib_models::{Command, MouseButton};
+use lib_models::{Command, MouseButton, MouseScroll};
 use tokio::{net::TcpStream, runtime::Runtime, sync::Mutex, time::sleep};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{
@@ -259,7 +259,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
                     return;
                 };
 
-                let button = MouseButton::from(button);
+                let button = MouseButton::from_linux_code(button);
 
                 match button_state {
                     wl_pointer::ButtonState::Released => {
@@ -268,11 +268,26 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
                     wl_pointer::ButtonState::Pressed => {
                         state.event = AppEvent::MouseButtonPressed(button)
                     }
-                    _ => unreachable!("Should not be here"),
+                    _ => {}
+                }
+            }
+            wl_pointer::Event::Axis { time, axis, value } => {
+                let WEnum::Value(axis) = axis else {
+                    return;
+                };
+
+                match axis {
+                    wl_pointer::Axis::VerticalScroll => {
+                        state.event = AppEvent::ScrollVertical(value);
+                    }
+                    wl_pointer::Axis::HorizontalScroll => {
+                        state.event = AppEvent::ScrollHorizontal(value);
+                    }
+                    _ => {}
                 }
             }
             _ => {
-                println!("other")
+                println!("other");
             }
         }
     }
@@ -326,6 +341,8 @@ enum AppEvent {
     MouseLeave,
     MouseButtonPressed(MouseButton),
     MouseButtonReleased(MouseButton),
+    ScrollHorizontal(f64),
+    ScrollVertical(f64),
 }
 
 impl State {
@@ -368,6 +385,16 @@ impl State {
                 println!("Mouse {:?} released", mouse_button);
 
                 Command::MouseButtonReleased(mouse_button.clone())
+            }
+            AppEvent::ScrollHorizontal(value) => {
+                println!("Horizontal scroll: {}", value);
+
+                Command::MouseScroll(MouseScroll::Horizontal(*value))
+            }
+            AppEvent::ScrollVertical(value) => {
+                println!("Vertival scroll: {}", value);
+
+                Command::MouseScroll(MouseScroll::Vertical(*value))
             }
         };
 
