@@ -2,7 +2,7 @@ use air_server::Result;
 use chrono::Utc;
 use enigo::{Coordinate, Enigo, Keyboard, Mouse, Settings};
 use futures::{stream::StreamExt, SinkExt};
-use lib_models::Command;
+use lib_models::{Command, MouseButton};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use tracing::debug;
@@ -25,7 +25,11 @@ async fn main() -> Result<()> {
 }
 
 async fn handle_connection(stream: TcpStream) -> Result<()> {
-    let mut enigo = Enigo::new(&Settings::default())?;
+    let settings = Settings{
+        windows_subject_to_mouse_speed_and_acceleration_level: true,
+        ..Default::default()
+    };
+    let mut enigo = Enigo::new(&settings)?;
 
     // Принятие WebSocket-соединения
     let ws_stream = accept_async(stream).await?;
@@ -83,22 +87,37 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
         Command::KeyCode(keycode) => enigo.raw(keycode, enigo::Direction::Press)?,
         Command::InputText(text) => enigo.text(&text)?,
         Command::MouseButtonPressed(mouse_button) => {
-            enigo.button(enigo::Button::Left, enigo::Direction::Press)?
+            let (button, direction) = map_mouse_button(mouse_button, true);
+            enigo.button(button, direction)?
         }
         Command::MouseButtonReleased(mouse_button) => {
-            enigo.button(enigo::Button::Left, enigo::Direction::Release)?
+            let (button, direction) = map_mouse_button(mouse_button, false);
+            enigo.button(button, direction)?
         }
         Command::MouseScroll(mouse_scroll) => match mouse_scroll {
             lib_models::MouseScroll::Vertical(value) => {
-                enigo.scroll(value as i32, enigo::Axis::Vertical)?
+                enigo.scroll(value.signum(), enigo::Axis::Vertical)?
             }
             lib_models::MouseScroll::Horizontal(value) => {
-                enigo.scroll(value as i32, enigo::Axis::Horizontal)?
+                enigo.scroll(value.signum(), enigo::Axis::Horizontal)?
             }
         },
     }
 
     Ok(())
+}
+
+fn map_mouse_button(mouse_button: MouseButton, is_press: bool) -> (enigo::Button, enigo::Direction) {
+    let direction = if is_press {enigo::Direction::Press} else {enigo::Direction::Release};
+    let button = match mouse_button {
+        MouseButton::LEFT => enigo::Button::Left,
+        MouseButton::RIGHT => enigo::Button::Right,
+        MouseButton::MIDDLE => enigo::Button::Middle,
+        MouseButton::MOUSE4 => enigo::Button::Back,
+        MouseButton::MOUSE5 => enigo::Button::Right,
+    };
+
+    (button, direction)
 }
 
 #[derive(Debug)]
