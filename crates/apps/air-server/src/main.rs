@@ -52,7 +52,7 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
                 match msg {
                     Message::Binary(bytes) => {
                         let command: Command = bytes.into();
-                        println!("[{time}] {command:?}: Received bytes: {bytes_len}, Total: {bytes_count}, Mesages: {msg_count}");
+                        // println!("[{time}] {command:?}: Received bytes: {bytes_len}, Total: {bytes_count}, Mesages: {msg_count}");
                         process_command(&mut enigo, command)?
                     }
                     Message::Ping(bytes) => write.send(Message::Pong(bytes)).await?,
@@ -79,7 +79,7 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
 
     match command {
         Command::MoveMouse { x, y } => {
-            move_mouse(enigo, x, y, MoveType::Smooth)?;
+            move_mouse(enigo, x, y, MoveType::Faster)?;
         }
         Command::SetMouse { x, y } => {
             move_mouse(enigo, x, y, MoveType::Immediate)?;
@@ -122,9 +122,13 @@ fn map_mouse_button(mouse_button: MouseButton, is_press: bool) -> (enigo::Button
 
 #[derive(Debug)]
 enum MoveType {
+    /// Just sets cursor into position
     Immediate = 0,
+    /// Moves cursor by 1 pixel
     Smooth = 1,
+    /// Moves cursor by 2 pixels
     Faster = 2,
+    /// Moves cursor by 3 pixels
     VeryFast = 3,
 }
 
