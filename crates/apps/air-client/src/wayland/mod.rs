@@ -276,7 +276,11 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
                     return;
                 };
 
-                println!("{time} {value}");
+                let value = value as i32;
+
+                if value == 0 {
+                    return;
+                }
 
                 match axis {
                     wl_pointer::Axis::VerticalScroll => {
@@ -389,15 +393,9 @@ impl State {
                 Command::MouseButtonReleased(mouse_button.clone())
             }
             AppEvent::ScrollHorizontal(value) => {
-                println!("Horizontal scroll: {}", value);
-
                 Command::MouseScroll(MouseScroll::Horizontal(*value))
             }
-            AppEvent::ScrollVertical(value) => {
-                println!("Vertical scroll: {}", value);
-
-                Command::MouseScroll(MouseScroll::Vertical(*value))
-            }
+            AppEvent::ScrollVertical(value) => Command::MouseScroll(MouseScroll::Vertical(*value)),
         };
 
         stream.send(command.into()).await?;
