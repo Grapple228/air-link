@@ -28,6 +28,9 @@ use wayland_client::{
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
+const DISPLAY_WIDTH: u32 = 1280;
+const DISPLAY_HEIGHT: u32 = 720;
+
 // Ignore events from these object types in this example.
 delegate_noop!(State: ignore wl_compositor::WlCompositor);
 delegate_noop!(State: ignore wl_surface::WlSurface);
@@ -62,7 +65,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                 "wl_shm" => {
                     let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ());
 
-                    let (init_w, init_h) = (1280, 720);
+                    let (init_w, init_h) = (DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
@@ -351,10 +354,16 @@ enum AppEvent {
     ScrollVertical(i32),
 }
 
+#[inline]
+fn map_cord(cord: i32, resolution_rate: f64) -> i32 {
+    (cord as f64 / resolution_rate) as i32
+}
+
 impl State {
     pub async fn handle(
         &mut self,
         stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+        resolution_rate: f64,
     ) -> Result<()> {
         let event = &self.event;
         // println!("handle {event:?}");
@@ -368,16 +377,22 @@ impl State {
                     return Ok(());
                 }
 
-                self.x = *x;
-                self.y = *y;
+                let x = map_cord(*x, resolution_rate);
+                let y = map_cord(*y, resolution_rate);
 
-                Command::MoveMouse { x: *x, y: *y }
+                self.x = x;
+                self.y = y;
+
+                Command::MoveMouse { x, y }
             }
             AppEvent::MouseEnter { x, y } => {
-                self.x = *x;
-                self.y = *y;
+                let x = map_cord(*x, resolution_rate);
+                let y = map_cord(*y, resolution_rate);
 
-                Command::SetMouse { x: *x, y: *y }
+                self.x = x;
+                self.y = y;
+
+                Command::SetMouse { x, y }
             }
             AppEvent::MouseLeave => {
                 return Ok(());
@@ -418,6 +433,12 @@ pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>
 
     println!("Starting the example window app, press <ESC> to quit.");
 
+    let (target_width, target_height) = (2560, 1440);
+
+    let resolution_rate = DISPLAY_WIDTH as f64 / target_width as f64;
+
+    println!("Res rate: {}", resolution_rate);
+
     let mut state = State {
         running: true,
         ..Default::default()
@@ -425,7 +446,7 @@ pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>
 
     while state.running {
         event_queue.blocking_dispatch(&mut state)?;
-        state.handle(&mut stream).await?;
+        state.handle(&mut stream, resolution_rate).await?;
     }
 
     Ok(())
