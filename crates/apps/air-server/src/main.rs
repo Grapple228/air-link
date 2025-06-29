@@ -9,28 +9,12 @@ use tracing::debug;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let settings = Settings {
-        linux_delay: 30,
-        wayland_display: Some("wayland-0".to_string()),
-        ..Default::default()
-    };
-    let mut enigo = Enigo::new(&settings)?;
-    enigo.move_mouse(100, 100, Coordinate::Abs)?;
-    enigo.move_mouse(0, -100, Coordinate::Rel)?;
-    enigo.move_mouse(0, -100, Coordinate::Rel)?;
-    enigo.move_mouse(0, -100, Coordinate::Rel)?;
-    enigo.move_mouse(0, -100, Coordinate::Rel)?;
-    enigo.move_mouse(0, -100, Coordinate::Rel)?;
-    enigo.button(enigo::Button::Left, enigo::Direction::Click);
-
-    return Ok(());
-
     // Инициализация вашего сервера
     air_server::init()?;
 
     // Инициализация TCP слушателя
-    let listener = TcpListener::bind("127.0.0.1:5555").await?;
-    println!("WebSocket server is running on ws://127.0.0.1:5555");
+    let listener = TcpListener::bind("192.168.0.150:5555").await?;
+    println!("WebSocket server is running on ws://192.168.0.150:5555");
 
     while let Ok((stream, _)) = listener.accept().await {
         // Обработка каждого соединения асинхронно
