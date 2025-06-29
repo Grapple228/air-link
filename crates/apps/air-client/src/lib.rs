@@ -4,8 +4,8 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 // -- Modules
-mod delegator;
 mod error;
+mod keycodes;
 mod wayland;
 
 // -- Flatten

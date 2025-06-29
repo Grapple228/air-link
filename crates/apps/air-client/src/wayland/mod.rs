@@ -1,3 +1,5 @@
+use crate::keycodes::MouseButton;
+
 use super::Result;
 use std::{
     fs::File,
@@ -28,6 +30,13 @@ use wayland_client::{
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
+// Ignore events from these object types in this example.
+delegate_noop!(State: ignore wl_compositor::WlCompositor);
+delegate_noop!(State: ignore wl_surface::WlSurface);
+delegate_noop!(State: ignore wl_shm::WlShm);
+delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
+delegate_noop!(State: ignore wl_buffer::WlBuffer);
+
 impl Dispatch<wl_registry::WlRegistry, ()> for State {
     fn event(
         state: &mut Self,
@@ -43,8 +52,6 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
         {
             match &interface[..] {
                 "wl_compositor" => {
-                    println!("wl_compositor");
-
                     let compositor =
                         registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
                     let surface = compositor.create_surface(qh, ());
@@ -55,11 +62,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                     }
                 }
                 "wl_shm" => {
-                    println!("wl_shm");
-
                     let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ());
 
-                    let (init_w, init_h) = (320, 240);
+                    let (init_w, init_h) = (1280, 720);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
@@ -82,13 +87,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                     }
                 }
                 "wl_seat" => {
-                    println!("wl_seat");
-
                     let seat = registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ());
                 }
                 "xdg_wm_base" => {
-                    println!("xdg_wm_base");
-
                     let wm_base = registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ());
                     state.wm_base = Some(wm_base);
 
@@ -102,16 +103,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
     }
 }
 
-// Ignore events from these object types in this example.
-delegate_noop!(State: ignore wl_compositor::WlCompositor);
-delegate_noop!(State: ignore wl_surface::WlSurface);
-delegate_noop!(State: ignore wl_shm::WlShm);
-delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
-delegate_noop!(State: ignore wl_buffer::WlBuffer);
-
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
-    println!("draw");
-
     use std::{cmp::min, io::Write};
     let mut buf = std::io::BufWriter::new(tmp);
     for y in 0..buf_y {
@@ -129,8 +121,6 @@ fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
 
 impl State {
     fn init_xdg_surface(&mut self, qh: &QueueHandle<State>) {
-        println!("init_xdg_surface");
-
         let wm_base = self.wm_base.as_ref().unwrap();
         let base_surface = self.base_surface.as_ref().unwrap();
 
@@ -153,8 +143,6 @@ impl Dispatch<xdg_wm_base::XdgWmBase, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        println!("xdg_wm_base");
-
         if let xdg_wm_base::Event::Ping { serial } = event {
             wm_base.pong(serial);
         }
@@ -170,8 +158,6 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        println!("xdg_surface");
-
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(serial);
             state.configured = true;
@@ -193,8 +179,6 @@ impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        println!("xdg_toplevel");
-
         if let xdg_toplevel::Event::Close = event {
             state.running = false;
         }
@@ -210,8 +194,6 @@ impl Dispatch<wl_seat::WlSeat, ()> for State {
         _: &Connection,
         qh: &QueueHandle<Self>,
     ) {
-        println!("seat");
-
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(capabilities),
         } = event
@@ -243,31 +225,55 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
                 surface_x,
                 surface_y,
             } => {
-                println!("mouse enter");
-                state.set_event(AppEvent::MouseLeave);
+                state.is_focus = true;
+                state.event = AppEvent::MouseEnter {
+                    x: surface_x as i32,
+                    y: surface_y as i32,
+                };
             }
             wl_pointer::Event::Leave { serial, surface } => {
-                println!("mouse leave");
-                state.set_event(AppEvent::MouseLeave);
+                state.is_focus = false;
+                state.event = AppEvent::MouseLeave;
             }
             wl_pointer::Event::Motion {
                 time,
                 surface_x,
                 surface_y,
             } => {
-                println!("mouse move");
-                state.set_event(AppEvent::MouseMove {
+                // Skip mouse move right after mouse enter
+                match &state.event {
+                    AppEvent::MouseEnter { .. } => return,
+                    _ => {}
+                }
+
+                state.event = AppEvent::MouseMove {
                     x: surface_x as i32,
                     y: surface_y as i32,
-                });
+                };
             }
             wl_pointer::Event::Button {
                 serial,
                 time,
                 button,
-                state,
+                state: button_state,
             } => {
-                println!("mouse button");
+                let WEnum::Value(button_state) = button_state else {
+                    return;
+                };
+
+                let button = MouseButton::from(button);
+
+                println!("Button {:?} {:?}", button, button_state);
+
+                match button_state {
+                    wl_pointer::ButtonState::Released => {
+                        state.event = AppEvent::MouseButtonReleased(button);
+                    }
+                    wl_pointer::ButtonState::Pressed => {
+                        state.event = AppEvent::MouseButtonPressed(button)
+                    }
+                    _ => unreachable!("Should not be here"),
+                }
             }
             _ => {
                 println!("other")
@@ -303,24 +309,27 @@ struct State {
     xdg_surface: Option<(xdg_surface::XdgSurface, xdg_toplevel::XdgToplevel)>,
     configured: bool,
 
-    event: Option<AppEvent>,
+    is_focus: bool,
+    event: AppEvent,
     x: i32,
     y: i32,
-    enter_processed: bool,
-    leave_processed: bool,
 }
 
-impl State {
-    fn set_event(&mut self, event: AppEvent) {
-        self.event.insert(event);
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum AppEvent {
-    MouseMove { x: i32, y: i32 },
-    MouseEnter,
+    #[default]
+    None,
+    MouseMove {
+        x: i32,
+        y: i32,
+    },
+    MouseEnter {
+        x: i32,
+        y: i32,
+    },
     MouseLeave,
+    MouseButtonPressed(MouseButton),
+    MouseButtonReleased(MouseButton),
 }
 
 impl State {
@@ -328,47 +337,39 @@ impl State {
         &mut self,
         stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     ) -> Result<()> {
-        let Some(event) = &self.event else {
-            return Ok(());
-        };
-
-        println!("handle {event:?}");
+        let event = &self.event;
+        // println!("handle {event:?}");
 
         let command: Command = match event {
-            AppEvent::MouseMove { x, y } => {
-                println!("Previous {} {}", self.x, self.y);
-                println!("New {} {}", x, y);
-
-                let x_moved = x - self.x;
-                let y_moved = y - self.y;
-
-                self.x += x_moved;
-                self.y += y_moved;
-
-                println!("Moved by {x_moved} {y_moved}");
-
-                if !self.enter_processed {
-                    Command::SetMouse { x: *x, y: *y }
-                } else {
-                    Command::MoveMouse {
-                        x: x_moved,
-                        y: y_moved,
-                    }
-                }
-            }
-            AppEvent::MouseEnter => {
-                self.enter_processed = false;
+            AppEvent::None => {
                 return Ok(());
+            }
+            AppEvent::MouseMove { x, y } => {
+                if !self.is_focus {
+                    return Ok(());
+                }
+
+                self.x = *x;
+                self.y = *y;
+
+                Command::MoveMouse { x: *x, y: *y }
+            }
+            AppEvent::MouseEnter { x, y } => {
+                self.x = *x;
+                self.y = *y;
+
+                Command::SetMouse { x: *x, y: *y }
             }
             AppEvent::MouseLeave => {
-                self.leave_processed = false;
                 return Ok(());
             }
+            AppEvent::MouseButtonPressed(mouse_button) => todo!(),
+            AppEvent::MouseButtonReleased(mouse_button) => todo!(),
         };
 
         stream.send(command.into()).await?;
 
-        self.event = None;
+        self.event = AppEvent::None;
 
         Ok(())
     }
