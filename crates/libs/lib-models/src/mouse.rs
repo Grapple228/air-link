@@ -1,5 +1,7 @@
+use bincode::{Decode, Encode};
+
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub enum MouseButton {
     LEFT,
     RIGHT,

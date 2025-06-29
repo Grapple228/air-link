@@ -261,8 +261,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
 
                 let button = MouseButton::from(button);
 
-                println!("Button {:?} {:?}", button, button_state);
-
                 match button_state {
                     wl_pointer::ButtonState::Released => {
                         state.event = AppEvent::MouseButtonReleased(button);
@@ -361,8 +359,16 @@ impl State {
             AppEvent::MouseLeave => {
                 return Ok(());
             }
-            AppEvent::MouseButtonPressed(mouse_button) => todo!(),
-            AppEvent::MouseButtonReleased(mouse_button) => todo!(),
+            AppEvent::MouseButtonPressed(mouse_button) => {
+                println!("Mouse {:?} pressed", mouse_button);
+
+                Command::MouseButtonPressed(mouse_button.clone())
+            }
+            AppEvent::MouseButtonReleased(mouse_button) => {
+                println!("Mouse {:?} released", mouse_button);
+
+                Command::MouseButtonReleased(mouse_button.clone())
+            }
         };
 
         stream.send(command.into()).await?;

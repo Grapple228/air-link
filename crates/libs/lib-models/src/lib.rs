@@ -8,12 +8,14 @@ use tokio_tungstenite::tungstenite::{Bytes, Message};
 pub use keyboard::KeyboardButton;
 pub use mouse::MouseButton;
 
-#[derive(Debug, Clone, PartialEq, Encode, Decode)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub enum Command {
     SetMouse { x: i32, y: i32 },
     MoveMouse { x: i32, y: i32 },
     KeyCode(u16),
     InputText(String),
+    MouseButtonPressed(MouseButton),
+    MouseButtonReleased(MouseButton),
 }
 
 impl Into<Message> for &Command {

@@ -80,9 +80,14 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
         Command::SetMouse { x, y } => {
             move_mouse(enigo, x, y, MoveType::Immediate)?;
         }
-
         Command::KeyCode(keycode) => enigo.raw(keycode, enigo::Direction::Press)?,
         Command::InputText(text) => enigo.text(&text)?,
+        Command::MouseButtonPressed(mouse_button) => {
+            enigo.button(enigo::Button::Left, enigo::Direction::Press)?
+        }
+        Command::MouseButtonReleased(mouse_button) => {
+            enigo.button(enigo::Button::Left, enigo::Direction::Release)?
+        }
     }
 
     Ok(())
