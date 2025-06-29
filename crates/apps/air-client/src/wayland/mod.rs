@@ -1,5 +1,3 @@
-use crate::keycodes::MouseButton;
-
 use super::Result;
 use std::{
     fs::File,
@@ -14,7 +12,7 @@ use futures::{
     future::{poll_fn, select, Either},
     SinkExt, StreamExt, TryFutureExt,
 };
-use lib_models::Command;
+use lib_models::{Command, MouseButton};
 use tokio::{net::TcpStream, runtime::Runtime, sync::Mutex, time::sleep};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{

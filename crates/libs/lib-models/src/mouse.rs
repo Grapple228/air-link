@@ -16,7 +16,3 @@ impl From<u32> for MouseButton {
         }
     }
 }
-
-#[allow(non_camel_case_types)]
-#[derive(Debug)]
-pub enum KeyboardButton {}

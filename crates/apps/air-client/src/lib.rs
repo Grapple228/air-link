@@ -5,7 +5,6 @@ use tracing_subscriber::EnvFilter;
 
 // -- Modules
 mod error;
-mod keycodes;
 mod wayland;
 
 // -- Flatten
