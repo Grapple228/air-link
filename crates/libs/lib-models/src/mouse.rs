@@ -3,11 +3,11 @@ use bincode::{Decode, Encode};
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum MouseButton {
-    LEFT,
-    RIGHT,
-    MIDDLE,
-    MOUSE4,
-    MOUSE5,
+    LEFT = 272,
+    RIGHT = 273,
+    MIDDLE = 274,
+    MOUSE4 = 275,
+    MOUSE5 = 276,
 }
 
 impl MouseButton {

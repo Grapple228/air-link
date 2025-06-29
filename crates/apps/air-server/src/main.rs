@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use air_server::Result;
 use chrono::Utc;
-use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
+use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings, EXT};
 use futures::{stream::StreamExt, SinkExt};
 use lib_models::{Command, MouseButton};
 use tokio::net::{TcpListener, TcpStream};
@@ -24,12 +26,19 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Default)]
+struct State {
+    ctrl_pressed: bool,
+    all_pressed: HashMap<u32, String>
+}
+
 async fn handle_connection(stream: TcpStream) -> Result<()> {
     let settings = Settings {
         windows_subject_to_mouse_speed_and_acceleration_level: true,
         ..Default::default()
     };
     let mut enigo = Enigo::new(&settings)?;
+    let mut state = State::default();
 
     // Принятие WebSocket-соединения
     let ws_stream = accept_async(stream).await?;
@@ -53,7 +62,7 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
                     Message::Binary(bytes) => {
                         let command: Command = bytes.into();
                         // println!("[{time}] {command:?}: Received bytes: {bytes_len}, Total: {bytes_count}, Mesages: {msg_count}");
-                        process_command(&mut enigo, command)?
+                        process_command(&mut state, &mut enigo, command)?
                     }
                     Message::Ping(bytes) => write.send(Message::Pong(bytes)).await?,
                     Message::Pong(_) => (),
@@ -73,9 +82,11 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
     Ok(())
 }
 
-fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()> {
+
+
+fn process_command(state: &mut State, enigo: &mut Enigo, command: impl Into<Command>) -> Result<()> {
     let command: Command = command.into();
-    debug!("Processing command {:?}", command);
+    // println!("Processing command {:?}", command);
 
     match command {
         Command::MoveMouse { x, y } => {
@@ -93,6 +104,7 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
             let (button, direction) = map_mouse_button(mouse_button, false);
             enigo.button(button, direction)?
         }
+
         Command::MouseScroll(mouse_scroll) => match mouse_scroll {
             lib_models::MouseScroll::Vertical(value) => {
                 enigo.scroll(value.signum(), enigo::Axis::Vertical)?
@@ -101,8 +113,55 @@ fn process_command(enigo: &mut Enigo, command: impl Into<Command>) -> Result<()>
                 enigo.scroll(value.signum(), enigo::Axis::Horizontal)?
             }
         },
-        Command::KeyPressed(keycode) => enigo.raw(keycode as u16, enigo::Direction::Press)?,
-        Command::KeyReleased(keycode) => enigo.raw(keycode as u16, enigo::Direction::Release)?,
+        Command::KeyPressed(keycode) => {
+            let direction =  enigo::Direction::Press;
+            match keycode {
+                // LEFT ARROW
+                105 => {
+                    enigo.key(Key::LeftArrow,  direction)?;
+                }
+                // RIGHT ARROW
+                106 => {
+                    enigo.key(Key::RightArrow,  direction)?;
+                }
+                // DOWN ARROW
+                108 => {
+                    enigo.key(Key::DownArrow,  direction)?;
+                }
+                // UP ARROW
+                103 => {
+                    enigo.key(Key::UpArrow, direction)?;
+                }
+
+                keycode => {
+                    enigo.raw(keycode as u16, direction)?
+                },
+            }
+        },
+
+        Command::KeyReleased(keycode) => {
+            let direction =  enigo::Direction::Release;
+            match keycode {
+             // LEFT ARROW
+                105 => {
+                    enigo.key(Key::LeftArrow,  direction)?;
+                }
+                // RIGHT ARROW
+                106 => {
+                    enigo.key(Key::RightArrow,  direction)?;
+                }
+                // DOWN ARROW
+                108 => {
+                    enigo.key(Key::DownArrow,  direction)?;
+                }
+                // UP ARROW
+                103 => {
+                    enigo.key(Key::UpArrow, direction)?;
+                }
+
+                keycode => enigo.raw(keycode as u16, direction)?,
+            }
+        }
     }
 
     Ok(())
