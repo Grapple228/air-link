@@ -28,6 +28,9 @@ use wayland_client::{
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 
+const DISPLAY_WIDTH: u32 = 1280;
+const DISPLAY_HEIGHT: u32 = 720;
+
 // Ignore events from these object types in this example.
 delegate_noop!(State: ignore wl_compositor::WlCompositor);
 delegate_noop!(State: ignore wl_surface::WlSurface);
@@ -62,7 +65,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
                 "wl_shm" => {
                     let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ());
 
-                    let (init_w, init_h) = (1280, 720);
+                    let (init_w, init_h) = (DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
                     let mut file = tempfile::tempfile().unwrap();
                     draw(&mut file, (init_w, init_h));
@@ -308,10 +311,53 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key { key, .. } = event {
-            if key == 1 {
-                // ESC key
-                state.running = false;
+        match event {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                println!("keymap {:?} {:?} {}", format, fd, size);
+            }
+            wl_keyboard::Event::Enter {
+                serial,
+                surface,
+                keys,
+            } => {
+                println!("{serial} {:?} {:?}", surface, keys);
+            }
+            wl_keyboard::Event::Leave { serial, surface } => {
+                println!("leave {serial} {:?} ", surface);
+            }
+            wl_keyboard::Event::Key {
+                serial,
+                time,
+                key,
+                state: key_state,
+            } => {
+                let WEnum::Value(key_state) = key_state else {
+                    return;
+                };
+
+                match key_state {
+                    wl_keyboard::KeyState::Released => state.event = AppEvent::KeyReleased(key),
+                    wl_keyboard::KeyState::Pressed => state.event = AppEvent::KeyPressed(key),
+                    _ => {}
+                }
+            }
+            wl_keyboard::Event::Modifiers {
+                serial,
+                mods_depressed,
+                mods_latched,
+                mods_locked,
+                group,
+            } => {
+                println!(
+                    "modifiers {serial} {} {} {} ",
+                    mods_depressed, mods_latched, mods_locked
+                );
+            }
+            wl_keyboard::Event::RepeatInfo { rate, delay } => {
+                println!("repeat {rate} {delay}");
+            }
+            _ => {
+                println!("other");
             }
         }
     }
@@ -349,15 +395,23 @@ enum AppEvent {
     MouseButtonReleased(MouseButton),
     ScrollHorizontal(i32),
     ScrollVertical(i32),
+
+    KeyPressed(u32),
+    KeyReleased(u32),
+}
+
+#[inline]
+fn map_cord(cord: i32, resolution_rate: f64) -> i32 {
+    (cord as f64 / resolution_rate) as i32
 }
 
 impl State {
     pub async fn handle(
         &mut self,
         stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+        resolution_rate: f64,
     ) -> Result<()> {
         let event = &self.event;
-        // println!("handle {event:?}");
 
         let command: Command = match event {
             AppEvent::None => {
@@ -368,16 +422,22 @@ impl State {
                     return Ok(());
                 }
 
-                self.x = *x;
-                self.y = *y;
+                let x = map_cord(*x, resolution_rate);
+                let y = map_cord(*y, resolution_rate);
 
-                Command::MoveMouse { x: *x, y: *y }
+                self.x = x;
+                self.y = y;
+
+                Command::MoveMouse { x, y }
             }
             AppEvent::MouseEnter { x, y } => {
-                self.x = *x;
-                self.y = *y;
+                let x = map_cord(*x, resolution_rate);
+                let y = map_cord(*y, resolution_rate);
 
-                Command::SetMouse { x: *x, y: *y }
+                self.x = x;
+                self.y = y;
+
+                Command::SetMouse { x, y }
             }
             AppEvent::MouseLeave => {
                 return Ok(());
@@ -396,6 +456,8 @@ impl State {
                 Command::MouseScroll(MouseScroll::Horizontal(*value))
             }
             AppEvent::ScrollVertical(value) => Command::MouseScroll(MouseScroll::Vertical(*value)),
+            AppEvent::KeyPressed(key) => Command::KeyPressed(*key),
+            AppEvent::KeyReleased(key) => Command::KeyReleased(*key),
         };
 
         stream.send(command.into()).await?;
@@ -406,7 +468,9 @@ impl State {
     }
 }
 
-pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>) -> Result<()> {
+pub async fn init_wayland(
+    mut stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+) -> Result<()> {
     // Initialize Wayland connection
     let conn = Connection::connect_to_env().unwrap();
 
@@ -418,6 +482,12 @@ pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>
 
     println!("Starting the example window app, press <ESC> to quit.");
 
+    let (target_width, target_height) = (2560, 1440);
+
+    let resolution_rate = DISPLAY_WIDTH as f64 / target_width as f64;
+
+    println!("Res rate: {}", resolution_rate);
+
     let mut state = State {
         running: true,
         ..Default::default()
@@ -425,7 +495,7 @@ pub async fn init_wayland(mut stream: WebSocketStream<MaybeTlsStream<TcpStream>>
 
     while state.running {
         event_queue.blocking_dispatch(&mut state)?;
-        state.handle(&mut stream).await?;
+        state.handle(&mut stream, resolution_rate).await?;
     }
 
     Ok(())

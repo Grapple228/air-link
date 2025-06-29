@@ -12,7 +12,8 @@ pub use mouse::{MouseButton, MouseScroll};
 pub enum Command {
     SetMouse { x: i32, y: i32 },
     MoveMouse { x: i32, y: i32 },
-    KeyCode(u16),
+    KeyPressed(u32),
+    KeyReleased(u32),
     InputText(String),
     MouseButtonPressed(MouseButton),
     MouseButtonReleased(MouseButton),
