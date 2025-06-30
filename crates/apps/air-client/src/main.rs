@@ -14,10 +14,7 @@ async fn main() -> Result<()> {
     let display = DisplayParams::new(2560, 1440);
 
     // Инициализируем дисплей
-    init_wayland(&mut ws_stream, &display).await?;
-
-    ws_stream.close(None).await?;
-    println!("WebSocket connection closed");
+    init_wayland(ws_stream, &display).await?;
 
     Ok(())
 }

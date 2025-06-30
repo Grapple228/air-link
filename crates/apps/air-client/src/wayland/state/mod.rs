@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use super::Result;
 use crate::event::AppEvent;
 use futures::{stream::SplitSink, SinkExt};
 use lib_models::{Command, MouseScroll};
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{
     delegate_noop,
@@ -58,7 +60,7 @@ impl State {
 
     pub async fn handle(
         &mut self,
-        write: &mut SplitSink<&mut WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+        write: Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
         resolution_rate: f64,
     ) -> Result<()> {
         let event = &self.event;
@@ -110,7 +112,7 @@ impl State {
             AppEvent::KeyReleased(key) => Command::KeyReleased(*key),
         };
 
-        write.send(command.into()).await?;
+        write.lock().await.send(command.into()).await?;
 
         self.event = AppEvent::None;
 

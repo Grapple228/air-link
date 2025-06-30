@@ -1,13 +1,19 @@
 mod error;
 mod state;
 
+use std::sync::Arc;
+
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
 pub use error::{Error, Result};
 
-use futures::StreamExt;
-use lib_models::DisplayParams;
+use futures::{
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
+};
+use lib_models::{Answer, DisplayParams};
 use state::State;
-use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio::{net::TcpStream, sync::Mutex};
+use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{Connection, EventQueue};
 
 /// Used for temporary display
@@ -16,10 +22,12 @@ const TMP_DISPLAY_WIDTH: u32 = 1280;
 const TMP_DISPLAY_HEIGHT: u32 = 720;
 
 pub async fn init_wayland(
-    stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     target_display: &DisplayParams,
 ) -> Result<()> {
-    let (mut write, mut _read) = stream.split();
+    let (mut write, mut read) = stream.split();
+
+    let write = Arc::new(Mutex::new(write));
 
     // Initialize Wayland connection
     let conn = Connection::connect_to_env().unwrap();
@@ -28,7 +36,7 @@ pub async fn init_wayland(
     let qhandle = event_queue.handle();
 
     let display = conn.display();
-    display.get_registry(&qhandle, ());
+    let registry = display.get_registry(&qhandle, ());
 
     println!("Starting the example window app, press <ESC> to quit.");
 
@@ -38,10 +46,50 @@ pub async fn init_wayland(
 
     let mut state = State::default();
 
+    let incoming_write = write.clone();
+    tokio::spawn(async move {
+        handle_incoming(read, incoming_write).await;
+    });
+
     while state.is_running() {
         event_queue.blocking_dispatch(&mut state)?;
-        state.handle(&mut write, resolution_rate).await?;
+        state.handle(write.clone(), resolution_rate).await?;
     }
+
+    write.lock().await.close().await?;
+    println!("WebSocket connection closed");
+
+    Ok(())
+}
+
+async fn handle_incoming(
+    mut read: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    write: Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
+) -> Result<()> {
+    loop {
+        if let Some(message) = read.next().await {
+            match message {
+                Ok(message) => match message {
+                    Message::Binary(bytes) => {
+                        let answer: Answer = bytes.into();
+                        match answer {
+                            Answer::ClipboardContents(content) => {
+                                let mut ctx = ClipboardContext::new().unwrap();
+                                ctx.set_contents(content).unwrap();
+                            }
+                        }
+                    }
+                    Message::Ping(bytes) => write.lock().await.send(Message::Pong(bytes)).await?,
+                    Message::Pong(_) => (),
+                    Message::Close(_) => break,
+                    _ => (),
+                },
+                Err(_) => {}
+            }
+        }
+    }
+
+    println!("Read closed");
 
     Ok(())
 }
