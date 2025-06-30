@@ -23,10 +23,8 @@ lib-models = { path = "../../libs/lib-models" }
 tokio-tungstenite = { workspace = true }
 
 # Mouse and Keyboard events
-enigo = {workspace = true}
 wayland-client = "0.31"  
 wayland-protocols = "0.32"
-evdev = "0.13"
 tempfile = "3.20"
 
 # -- Async
@@ -39,6 +37,7 @@ tracing-subscriber = { workspace = true }
 
 # -- Other
 derive_more = { workspace = true }
+clipboard = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

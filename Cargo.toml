@@ -9,7 +9,7 @@ repository = "https://github.com/grapple228/air-link.git"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-# unused = { level = "allow", priority = -1 } # For exploratory dev.
+unused = { level = "allow", priority = -1 } # For exploratory dev.
 
 [workspace]
 resolver = "2"
@@ -20,10 +20,9 @@ members = [
 
     # -- Application Libraries
     "crates/libs/lib-codec",
-    "crates/libs/lib-models",  
+    "crates/libs/lib-models", 
 
     # -- Tools
-    # "crates/tools/gen-key",
 ]
 
 [workspace.dependencies]
@@ -49,6 +48,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 #Other
 derive_more = {version = "1", features = ["from"] }
+clipboard = "0.5"
 
 # Dev
 anyhow = "1"

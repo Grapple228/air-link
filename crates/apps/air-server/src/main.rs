@@ -89,6 +89,11 @@ fn process_command(
     enigo: &mut Enigo,
     command: impl Into<Command>,
 ) -> Result<()> {
+fn process_command(
+    state: &mut State,
+    enigo: &mut Enigo,
+    command: impl Into<Command>,
+) -> Result<()> {
     let command: Command = command.into();
     // println!("Processing command {:?}", command);
 
@@ -151,6 +156,7 @@ fn process_command(
                     enigo.raw(keycode as u16, direction)?
                 }
             }
+        }
         }
 
         Command::KeyReleased(keycode) => {
