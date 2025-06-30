@@ -5,9 +5,11 @@ use tracing_subscriber::EnvFilter;
 
 // -- Modules
 mod error;
+mod modifier;
 
 // -- Flatten
 pub use error::{Error, Result};
+pub use modifier::Modifier;
 
 // endregion: --- Modules
 

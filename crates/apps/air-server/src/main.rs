@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-
-use air_server::Result;
+use air_server::{Error, Modifier, Result};
 use chrono::Utc;
+use clipboard::{ClipboardContext, ClipboardProvider};
 use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings, EXT};
 use futures::{stream::StreamExt, SinkExt};
 use lib_models::{Command, MouseButton};
+use std::collections::HashMap;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use tracing::debug;
@@ -26,10 +26,9 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Default)]
 struct State {
-    ctrl_pressed: bool,
-    all_pressed: HashMap<u32, String>
+    modifiers: Modifier,
+    clipboard: ClipboardContext,
 }
 
 async fn handle_connection(stream: TcpStream) -> Result<()> {
@@ -38,7 +37,10 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
         ..Default::default()
     };
     let mut enigo = Enigo::new(&settings)?;
-    let mut state = State::default();
+    let mut state = State {
+        clipboard: ClipboardContext::new().map_err(|_| Error::ClipboardInit)?,
+        modifiers: Modifier::None,
+    };
 
     // Принятие WebSocket-соединения
     let ws_stream = accept_async(stream).await?;
@@ -82,9 +84,11 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
     Ok(())
 }
 
-
-
-fn process_command(state: &mut State, enigo: &mut Enigo, command: impl Into<Command>) -> Result<()> {
+fn process_command(
+    state: &mut State,
+    enigo: &mut Enigo,
+    command: impl Into<Command>,
+) -> Result<()> {
     let command: Command = command.into();
     // println!("Processing command {:?}", command);
 
@@ -114,52 +118,60 @@ fn process_command(state: &mut State, enigo: &mut Enigo, command: impl Into<Comm
             }
         },
         Command::KeyPressed(keycode) => {
-            let direction =  enigo::Direction::Press;
+            let direction = enigo::Direction::Press;
+
             match keycode {
-                // LEFT ARROW
-                105 => {
-                    enigo.key(Key::LeftArrow,  direction)?;
+                0x69 => enigo.key(Key::LeftArrow, direction)?,
+                0x6A => enigo.key(Key::RightArrow, direction)?,
+                0x6C => enigo.key(Key::DownArrow, direction)?,
+                0x67 => enigo.key(Key::UpArrow, direction)?,
+
+                0x2E => {
+                    enigo.key(Key::C, direction)?;
+
+                    if state.modifiers.is_control() {
+                        // Need to send Answer::Copy(String)
+                        let content = ClipboardContext::new()
+                            .unwrap()
+                            .get_contents()
+                            .map_err(|_| Error::ClipboardGet)?;
+
+                        println!("Clipboard: {content}")
+                    }
                 }
-                // RIGHT ARROW
-                106 => {
-                    enigo.key(Key::RightArrow,  direction)?;
-                }
-                // DOWN ARROW
-                108 => {
-                    enigo.key(Key::DownArrow,  direction)?;
-                }
-                // UP ARROW
-                103 => {
-                    enigo.key(Key::UpArrow, direction)?;
+
+                0x1D => {
+                    state.modifiers.set(Modifier::LControl);
+                    enigo.key(Key::LControl, direction)?;
                 }
 
                 keycode => {
+                    println!("Key pressed: {:x}", keycode);
+
                     enigo.raw(keycode as u16, direction)?
-                },
+                }
             }
-        },
+        }
 
         Command::KeyReleased(keycode) => {
-            let direction =  enigo::Direction::Release;
+            let direction = enigo::Direction::Release;
+
             match keycode {
-             // LEFT ARROW
-                105 => {
-                    enigo.key(Key::LeftArrow,  direction)?;
-                }
-                // RIGHT ARROW
-                106 => {
-                    enigo.key(Key::RightArrow,  direction)?;
-                }
-                // DOWN ARROW
-                108 => {
-                    enigo.key(Key::DownArrow,  direction)?;
-                }
-                // UP ARROW
-                103 => {
-                    enigo.key(Key::UpArrow, direction)?;
+                0x69 => enigo.key(Key::LeftArrow, direction)?,
+                0x6A => enigo.key(Key::RightArrow, direction)?,
+                0x6C => enigo.key(Key::DownArrow, direction)?,
+                0x67 => enigo.key(Key::UpArrow, direction)?,
+
+                0x1D => {
+                    state.modifiers.remove(Modifier::LControl);
+                    enigo.key(Key::LControl, direction)?;
                 }
 
-                keycode => enigo.raw(keycode as u16, direction)?,
+                keycode => {
+                    println!("Key released: {:x}", keycode);
+
+                    enigo.raw(keycode as u16, direction)?
+                }
             }
         }
     }

@@ -4,6 +4,9 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, From)]
 pub enum Error {
+    ClipboardInit,
+    ClipboardGet,
+
     #[from]
     Enigo(enigo::InputError),
     #[from]
