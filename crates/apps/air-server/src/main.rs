@@ -2,12 +2,22 @@ use air_server::{Error, Modifier, Result};
 use chrono::Utc;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
-use futures::{stream::StreamExt, SinkExt};
-use lib_models::{Command, MouseButton};
-use std::collections::HashMap;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::{accept_async, tungstenite::Message};
+use futures::{
+    stream::{SplitSink, StreamExt},
+    SinkExt,
+};
+use lib_models::{Answer, Command, MouseButton};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use tokio::{
+    io::AsyncWrite,
+    net::{TcpListener, TcpStream},
+    sync::Mutex,
+    time::sleep,
+};
+use tokio_tungstenite::{accept_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use tracing::debug;
+
+type Stream = WebSocketStream<TcpStream>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,9 +36,31 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+enum AnswerType {
+    None,
+    Clipboard,
+}
+
 struct State {
     modifiers: Modifier,
     clipboard: ClipboardContext,
+}
+
+async fn send_clipboard(wait_ms: u64, write: Arc<Mutex<SplitSink<Stream, Message>>>) -> Result<()> {
+    sleep(Duration::from_millis(20)).await;
+
+    let mut clipboard = ClipboardContext::new().map_err(|_| Error::ClipboardInit)?;
+    let content = clipboard.get_contents().map_err(|_| Error::ClipboardInit)?;
+
+    println!("Sent clipboard: {}", content);
+
+    write
+        .lock()
+        .await
+        .send(Answer::ClipboardContents(content).into())
+        .await;
+
+    Ok(())
 }
 
 async fn handle_connection(stream: TcpStream) -> Result<()> {
@@ -49,6 +81,8 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 
     let (mut write, mut read) = ws_stream.split();
 
+    let write = Arc::new(Mutex::new(write));
+
     let mut bytes_count = 0;
     let mut msg_count = 0;
 
@@ -64,9 +98,17 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
                     Message::Binary(bytes) => {
                         let command: Command = bytes.into();
                         // println!("[{time}] {command:?}: Received bytes: {bytes_len}, Total: {bytes_count}, Mesages: {msg_count}");
-                        process_command(&mut state, &mut enigo, command)?
+                        let answer_type = process_command(&mut state, &mut enigo, command)?;
+
+                        match answer_type {
+                            AnswerType::None => {}
+                            AnswerType::Clipboard => {
+                                let write = write.clone();
+                                tokio::spawn(async move { send_clipboard(20, write).await });
+                            }
+                        }
                     }
-                    Message::Ping(bytes) => write.send(Message::Pong(bytes)).await?,
+                    Message::Ping(bytes) => write.lock().await.send(Message::Pong(bytes)).await?,
                     Message::Pong(_) => (),
                     Message::Close(_) => break,
                     _ => (),
@@ -88,7 +130,7 @@ fn process_command(
     state: &mut State,
     enigo: &mut Enigo,
     command: impl Into<Command>,
-) -> Result<()> {
+) -> Result<AnswerType> {
     let command: Command = command.into();
     // println!("Processing command {:?}", command);
 
@@ -130,13 +172,7 @@ fn process_command(
                     enigo.raw(keycode as u16, direction)?;
 
                     if state.modifiers.is_control() {
-                        // Need to send Answer::Copy(String)
-                        let content = ClipboardContext::new()
-                            .unwrap()
-                            .get_contents()
-                            .map_err(|_| Error::ClipboardGet)?;
-
-                        println!("Clipboard: {content}")
+                        return Ok(AnswerType::Clipboard);
                     }
                 }
 
@@ -176,7 +212,7 @@ fn process_command(
         }
     }
 
-    Ok(())
+    Ok(AnswerType::None)
 }
 
 fn map_mouse_button(
