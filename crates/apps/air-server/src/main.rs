@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use air_server::Result;
 use chrono::Utc;
-use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings, EXT};
+use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
 use futures::{stream::StreamExt, SinkExt};
 use lib_models::{Command, MouseButton};
 use tokio::net::{TcpListener, TcpStream};
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
 #[derive(Debug, Clone, Default)]
 struct State {
     ctrl_pressed: bool,
-    all_pressed: HashMap<u32, String>
+    all_pressed: HashMap<u32, String>,
 }
 
 async fn handle_connection(stream: TcpStream) -> Result<()> {
@@ -82,9 +82,11 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
     Ok(())
 }
 
-
-
-fn process_command(state: &mut State, enigo: &mut Enigo, command: impl Into<Command>) -> Result<()> {
+fn process_command(
+    state: &mut State,
+    enigo: &mut Enigo,
+    command: impl Into<Command>,
+) -> Result<()> {
     let command: Command = command.into();
     // println!("Processing command {:?}", command);
 
@@ -114,45 +116,43 @@ fn process_command(state: &mut State, enigo: &mut Enigo, command: impl Into<Comm
             }
         },
         Command::KeyPressed(keycode) => {
-            let direction =  enigo::Direction::Press;
+            let direction = enigo::Direction::Press;
             match keycode {
                 // LEFT ARROW
                 105 => {
-                    enigo.key(Key::LeftArrow,  direction)?;
+                    enigo.key(Key::LeftArrow, direction)?;
                 }
                 // RIGHT ARROW
                 106 => {
-                    enigo.key(Key::RightArrow,  direction)?;
+                    enigo.key(Key::RightArrow, direction)?;
                 }
                 // DOWN ARROW
                 108 => {
-                    enigo.key(Key::DownArrow,  direction)?;
+                    enigo.key(Key::DownArrow, direction)?;
                 }
                 // UP ARROW
                 103 => {
                     enigo.key(Key::UpArrow, direction)?;
                 }
 
-                keycode => {
-                    enigo.raw(keycode as u16, direction)?
-                },
+                keycode => enigo.raw(keycode as u16, direction)?,
             }
-        },
+        }
 
         Command::KeyReleased(keycode) => {
-            let direction =  enigo::Direction::Release;
+            let direction = enigo::Direction::Release;
             match keycode {
-             // LEFT ARROW
+                // LEFT ARROW
                 105 => {
-                    enigo.key(Key::LeftArrow,  direction)?;
+                    enigo.key(Key::LeftArrow, direction)?;
                 }
                 // RIGHT ARROW
                 106 => {
-                    enigo.key(Key::RightArrow,  direction)?;
+                    enigo.key(Key::RightArrow, direction)?;
                 }
                 // DOWN ARROW
                 108 => {
-                    enigo.key(Key::DownArrow,  direction)?;
+                    enigo.key(Key::DownArrow, direction)?;
                 }
                 // UP ARROW
                 103 => {
