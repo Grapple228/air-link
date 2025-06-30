@@ -1,7 +1,7 @@
 use air_server::{Error, Modifier, Result};
 use chrono::Utc;
 use clipboard::{ClipboardContext, ClipboardProvider};
-use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings, EXT};
+use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
 use futures::{stream::StreamExt, SinkExt};
 use lib_models::{Command, MouseButton};
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use tracing::debug;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Инициализация вашего сервера
+    // Инициализация сервера
     air_server::init()?;
 
     // Инициализация TCP слушателя
@@ -89,11 +89,6 @@ fn process_command(
     enigo: &mut Enigo,
     command: impl Into<Command>,
 ) -> Result<()> {
-fn process_command(
-    state: &mut State,
-    enigo: &mut Enigo,
-    command: impl Into<Command>,
-) -> Result<()> {
     let command: Command = command.into();
     // println!("Processing command {:?}", command);
 
@@ -132,7 +127,7 @@ fn process_command(
                 0x67 => enigo.key(Key::UpArrow, direction)?,
 
                 0x2E => {
-                    enigo.key(Key::C, direction)?;
+                    enigo.raw(keycode as u16, direction)?;
 
                     if state.modifiers.is_control() {
                         // Need to send Answer::Copy(String)
@@ -156,7 +151,6 @@ fn process_command(
                     enigo.raw(keycode as u16, direction)?
                 }
             }
-        }
         }
 
         Command::KeyReleased(keycode) => {

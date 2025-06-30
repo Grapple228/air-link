@@ -5,7 +5,7 @@
 [env]
 
 # Scope down tracing, to filter out external lib tracing.
-RUST_LOG = "enigo=debug"
+RUST_LOG = ""
 SERVICE_DB_URL = "postgres://app_user:dev_only_pwd@localhost:5434/app_db"
 
 # -- Service Environment Variables
