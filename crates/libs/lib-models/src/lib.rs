@@ -1,3 +1,4 @@
+mod display;
 mod keyboard;
 mod mouse;
 
@@ -5,6 +6,7 @@ use bincode::{Decode, Encode};
 use lib_codec::{decode, encode};
 use tokio_tungstenite::tungstenite::{Bytes, Message};
 
+pub use display::DisplayParams;
 pub use keyboard::KeyboardButton;
 pub use mouse::{MouseButton, MouseScroll};
 

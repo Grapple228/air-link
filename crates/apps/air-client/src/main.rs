@@ -1,23 +1,6 @@
 use air_client::{init_wayland, Result};
-use futures::sink::SinkExt;
-use lib_models::Command;
-use tokio::time::sleep;
+use lib_models::DisplayParams;
 use tokio_tungstenite::connect_async;
-use wayland_client::globals::{registry_queue_init, GlobalListContents};
-use wayland_client::protocol::wl_compositor::WlCompositor;
-use wayland_client::protocol::wl_keyboard::WlKeyboard;
-use wayland_client::protocol::wl_pointer::WlPointer;
-use wayland_client::protocol::wl_registry::WlRegistry;
-use wayland_client::protocol::wl_seat::{self, WlSeat};
-use wayland_client::protocol::wl_touch::WlTouch;
-use wayland_client::protocol::{wl_compositor, wl_pointer, wl_registry, wl_touch};
-use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
-
-use std::fs::{File, OpenOptions};
-use std::os::unix::thread;
-use std::os::unix::{fs::OpenOptionsExt, io::OwnedFd};
-use std::path::Path;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,10 +10,11 @@ async fn main() -> Result<()> {
     println!("Connected to the WebSocket server");
 
     // Получаем параметры дисплея
+    // todo Get from stream
+    let display = DisplayParams::new(2560, 1440);
 
     // Инициализируем дисплей
-
-    init_wayland(&mut ws_stream).await?;
+    init_wayland(&mut ws_stream, &display).await?;
 
     ws_stream.close(None).await?;
     println!("WebSocket connection closed");

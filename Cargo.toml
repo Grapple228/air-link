@@ -9,7 +9,7 @@ repository = "https://github.com/grapple228/air-link.git"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-unused = { level = "allow", priority = -1 } # For exploratory dev.
+# unused = { level = "allow", priority = -1 } # For exploratory dev.
 
 [workspace]
 resolver = "2"
