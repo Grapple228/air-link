@@ -2,8 +2,6 @@ use bincode::{Decode, Encode};
 use lib_codec::{decode, encode};
 use tokio_tungstenite::tungstenite::{Bytes, Message};
 
-use crate::{MouseButton, MouseScroll};
-
 #[derive(Debug, Clone, Encode, Decode)]
 pub enum Answer {
     ClipboardContents(String),

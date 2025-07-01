@@ -25,11 +25,11 @@ const TMP_DISPLAY_HEIGHT: u32 = 720;
 pub fn init_queue() -> Result<EventQueue<State>> {
     let conn = Connection::connect_to_env()?;
 
-    let mut event_queue: EventQueue<state::State> = conn.new_event_queue();
+    let event_queue: EventQueue<state::State> = conn.new_event_queue();
     let qhandle = event_queue.handle();
 
     let display = conn.display();
-    let registry = display.get_registry(&qhandle, ());
+    _ = display.get_registry(&qhandle, ());
 
     Ok(event_queue)
 }
@@ -38,7 +38,7 @@ pub async fn init_wayland(
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     target_display: &DisplayParams,
 ) -> Result<()> {
-    let (mut write, mut read) = stream.split();
+    let (write, read) = stream.split();
 
     let write = Arc::new(Mutex::new(write));
 
@@ -54,7 +54,7 @@ pub async fn init_wayland(
     // Initialize incoming messages handler
     let incoming_write = write.clone();
     let incoming = tokio::spawn(async move {
-        handle_incoming(read, incoming_write).await;
+        _ = handle_incoming(read, incoming_write).await;
     });
 
     let mut state = State::new(resolution_rate);
@@ -63,7 +63,7 @@ pub async fn init_wayland(
         state.handle(write.clone()).await?;
     }
 
-    _ = incoming.await;
+    incoming.await?;
 
     write.lock().await.close().await?;
 

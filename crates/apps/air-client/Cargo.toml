@@ -22,13 +22,8 @@ lib-models = { path = "../../libs/lib-models" }
 # Websocket
 tokio-tungstenite = { workspace = true }
 
-# Mouse and Keyboard events
-wayland-client = "0.31"  
-wayland-protocols = "0.32"
-tempfile = "3.20"
-
 # -- Async
-futures = {workspace = true }
+futures = { workspace = true }
 tokio = { workspace = true }
 
 # -- Tracing
@@ -37,10 +32,15 @@ tracing-subscriber = { workspace = true }
 
 # -- Other
 derive_more = { workspace = true }
-cli-clipboard = "0.4.0" 
+tempfile = "3.20"
+cli-clipboard = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Mouse and Keyboard events
+wayland-client = "0.31"
+wayland-protocols = "0.32"
+
 
 [dev-dependencies]
 anyhow = { workspace = true }
-httpc-test = { workspace = true }
-serial_test = { workspace = true }
 chrono = "0.4"

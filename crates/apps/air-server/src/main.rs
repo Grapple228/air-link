@@ -1,21 +1,18 @@
 use air_server::{Error, Modifier, Result};
-use chrono::Utc;
-use clipboard::{ClipboardContext, ClipboardProvider};
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
 use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
 use futures::{
     stream::{SplitSink, StreamExt},
     SinkExt,
 };
 use lib_models::{Answer, Command, MouseButton};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 use tokio::{
-    io::AsyncWrite,
     net::{TcpListener, TcpStream},
     sync::Mutex,
     time::sleep,
 };
-use tokio_tungstenite::{accept_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
-use tracing::debug;
+use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
 
 type Stream = WebSocketStream<TcpStream>;
 
@@ -43,11 +40,10 @@ enum AnswerType {
 
 struct State {
     modifiers: Modifier,
-    clipboard: ClipboardContext,
 }
 
 async fn send_clipboard(wait_ms: u64, write: Arc<Mutex<SplitSink<Stream, Message>>>) -> Result<()> {
-    sleep(Duration::from_millis(20)).await;
+    sleep(Duration::from_millis(wait_ms)).await;
 
     let mut clipboard = ClipboardContext::new().map_err(|_| Error::ClipboardInit)?;
     let content = clipboard.get_contents().map_err(|_| Error::ClipboardInit)?;
@@ -58,7 +54,7 @@ async fn send_clipboard(wait_ms: u64, write: Arc<Mutex<SplitSink<Stream, Message
         .lock()
         .await
         .send(Answer::ClipboardContents(content).into())
-        .await;
+        .await?;
 
     Ok(())
 }
@@ -70,7 +66,6 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
     };
     let mut enigo = Enigo::new(&settings)?;
     let mut state = State {
-        clipboard: ClipboardContext::new().map_err(|_| Error::ClipboardInit)?,
         modifiers: Modifier::None,
     };
 
@@ -79,41 +74,30 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 
     println!("New WebSocket connection established");
 
-    let (mut write, mut read) = ws_stream.split();
+    let (write, mut read) = ws_stream.split();
 
     let write = Arc::new(Mutex::new(write));
 
-    let mut bytes_count = 0;
-    let mut msg_count = 0;
-
     while let Some(message) = read.next().await {
-        let time = Utc::now();
         match message {
-            Ok(msg) => {
-                let bytes_len = msg.len();
-                bytes_count += bytes_len;
-                msg_count += 1;
+            Ok(msg) => match msg {
+                Message::Binary(bytes) => {
+                    let command: Command = bytes.into();
+                    let answer_type = process_command(&mut state, &mut enigo, command)?;
 
-                match msg {
-                    Message::Binary(bytes) => {
-                        let command: Command = bytes.into();
-                        // println!("[{time}] {command:?}: Received bytes: {bytes_len}, Total: {bytes_count}, Mesages: {msg_count}");
-                        let answer_type = process_command(&mut state, &mut enigo, command)?;
-
-                        match answer_type {
-                            AnswerType::None => {}
-                            AnswerType::Clipboard => {
-                                let write = write.clone();
-                                tokio::spawn(async move { send_clipboard(20, write).await });
-                            }
+                    match answer_type {
+                        AnswerType::None => {}
+                        AnswerType::Clipboard => {
+                            let write = write.clone();
+                            tokio::spawn(async move { send_clipboard(20, write).await });
                         }
                     }
-                    Message::Ping(bytes) => write.lock().await.send(Message::Pong(bytes)).await?,
-                    Message::Pong(_) => (),
-                    Message::Close(_) => break,
-                    _ => (),
                 }
-            }
+                Message::Ping(bytes) => write.lock().await.send(Message::Pong(bytes)).await?,
+                Message::Pong(_) => (),
+                Message::Close(_) => break,
+                _ => (),
+            },
             Err(e) => {
                 eprintln!("Error receiving message: {:?}", e);
                 break;
@@ -236,6 +220,7 @@ fn map_mouse_button(
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 enum MoveType {
     /// Just sets cursor into position
     Immediate = 0,

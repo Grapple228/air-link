@@ -5,12 +5,6 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug, From)]
 pub enum Error {
     #[from]
-    Dispatch(wayland_client::DispatchError),
-
-    #[from]
-    Connect(wayland_client::ConnectError),
-
-    #[from]
     Tungstenite(tokio_tungstenite::tungstenite::Error),
 
     #[from]

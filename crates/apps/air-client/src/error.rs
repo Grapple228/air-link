@@ -8,7 +8,16 @@ pub enum Error {
     Tungstenite(tokio_tungstenite::tungstenite::Error),
 
     #[from]
+    #[cfg(target_os = "linux")]
+    X11(crate::x11::Error),
+
+    #[from]
+    #[cfg(target_os = "linux")]
     Wayland(crate::wayland::Error),
+
+    #[from]
+    #[cfg(target_os = "windows")]
+    Windows(crate::windows::Error),
 
     #[from]
     Io(std::io::Error),

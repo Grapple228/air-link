@@ -1,6 +1,7 @@
 use lib_models::MouseButton;
 
 #[derive(Debug, Default)]
+#[allow(unused)]
 pub enum AppEvent {
     #[default]
     None,

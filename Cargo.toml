@@ -8,8 +8,8 @@ readme = "readme.md"
 repository = "https://github.com/grapple228/air-link.git"
 
 [workspace.lints.rust]
-# unsafe_code = "forbid"
-unused = { level = "allow", priority = -1 } # For exploratory dev.
+unsafe_code = "forbid"
+# unused = { level = "allow", priority = -1 } # For exploratory dev.
 
 [workspace]
 resolver = "2"
@@ -48,9 +48,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 #Other
 derive_more = {version = "1", features = ["from"] }
-clipboard = "0.5"
+cli-clipboard = "0.4.0" 
 
 # Dev
 anyhow = "1"
-httpc-test = "0.1"
-serial_test = "2"
