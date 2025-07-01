@@ -1,12 +1,13 @@
 use air_client::Result;
 use lib_models::DisplayParams;
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::connect_async_with_config;
 
 #[tokio::main]
 #[cfg(target_os = "linux")]
 async fn main() -> Result<()> {
     // Подключение к серверу
-    let (ws_stream, _) = connect_async("ws://192.168.0.150:5555").await?;
+
+    let (ws_stream, _) = connect_async_with_config("ws://192.168.0.150:5555", None, true).await?;
 
     println!("Connected to the WebSocket server");
 
@@ -24,7 +25,7 @@ async fn main() -> Result<()> {
 #[cfg(target_os = "windows")]
 async fn main() -> Result<()> {
     // Подключение к серверу
-    let (ws_stream, _) = connect_async("ws://192.168.0.150:5555").await?;
+    let (ws_stream, _) = connect_async_with_config("ws://192.168.0.150:5555", None, true).await?;
 
     println!("Connected to the WebSocket server");
 
