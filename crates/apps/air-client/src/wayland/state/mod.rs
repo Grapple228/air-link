@@ -41,16 +41,26 @@ pub struct State {
     configured: bool,
 
     is_focus: bool,
+    resolution_rate: f64,
     event: AppEvent,
     x: i32,
     y: i32,
 }
 
 impl State {
-    pub fn default() -> Self {
+    pub fn new(resolution_rate: f64) -> Self {
         Self {
             running: true,
-            ..Default::default()
+            resolution_rate,
+            base_surface: None,
+            buffer: None,
+            wm_base: None,
+            xdg_surface: None,
+            configured: false,
+            is_focus: false,
+            event: AppEvent::None,
+            x: 0,
+            y: 0,
         }
     }
 
@@ -61,7 +71,6 @@ impl State {
     pub async fn handle(
         &mut self,
         write: Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
-        resolution_rate: f64,
     ) -> Result<()> {
         let event = &self.event;
 
@@ -74,8 +83,8 @@ impl State {
                     return Ok(());
                 }
 
-                let x = map_cord(*x, resolution_rate);
-                let y = map_cord(*y, resolution_rate);
+                let x = map_cord(*x, self.resolution_rate);
+                let y = map_cord(*y, self.resolution_rate);
 
                 self.x = x;
                 self.y = y;
@@ -83,8 +92,8 @@ impl State {
                 Command::MoveMouse { x, y }
             }
             AppEvent::MouseEnter { x, y } => {
-                let x = map_cord(*x, resolution_rate);
-                let y = map_cord(*y, resolution_rate);
+                let x = map_cord(*x, self.resolution_rate);
+                let y = map_cord(*y, self.resolution_rate);
 
                 self.x = x;
                 self.y = y;

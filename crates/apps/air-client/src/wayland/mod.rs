@@ -14,12 +14,25 @@ use lib_models::{Answer, DisplayParams};
 use state::State;
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
+use tracing::warn;
 use wayland_client::{Connection, EventQueue};
 
 /// Used for temporary display
 const TMP_DISPLAY_WIDTH: u32 = 1280;
 /// Used for temporary display
 const TMP_DISPLAY_HEIGHT: u32 = 720;
+
+pub fn init_queue() -> Result<EventQueue<State>> {
+    let conn = Connection::connect_to_env()?;
+
+    let mut event_queue: EventQueue<state::State> = conn.new_event_queue();
+    let qhandle = event_queue.handle();
+
+    let display = conn.display();
+    let registry = display.get_registry(&qhandle, ());
+
+    Ok(event_queue)
+}
 
 pub async fn init_wayland(
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
@@ -29,14 +42,8 @@ pub async fn init_wayland(
 
     let write = Arc::new(Mutex::new(write));
 
-    // Initialize Wayland connection
-    let conn = Connection::connect_to_env().unwrap();
-
-    let mut event_queue: EventQueue<state::State> = conn.new_event_queue();
-    let qhandle = event_queue.handle();
-
-    let display = conn.display();
-    let registry = display.get_registry(&qhandle, ());
+    // Initialize Wayland
+    let mut event_queue = init_queue()?;
 
     println!("Starting the example window app, press <ESC> to quit.");
 
@@ -44,19 +51,22 @@ pub async fn init_wayland(
     // Used for modifying tmp display cords into output resolution
     let resolution_rate = TMP_DISPLAY_WIDTH as f64 / target_display.width() as f64;
 
-    let mut state = State::default();
-
+    // Initialize incoming messages handler
     let incoming_write = write.clone();
-    tokio::spawn(async move {
+    let incoming = tokio::spawn(async move {
         handle_incoming(read, incoming_write).await;
     });
 
+    let mut state = State::new(resolution_rate);
     while state.is_running() {
         event_queue.blocking_dispatch(&mut state)?;
-        state.handle(write.clone(), resolution_rate).await?;
+        state.handle(write.clone()).await?;
     }
 
+    _ = incoming.await;
+
     write.lock().await.close().await?;
+
     println!("WebSocket connection closed");
 
     Ok(())
@@ -74,8 +84,18 @@ async fn handle_incoming(
                         let answer: Answer = bytes.into();
                         match answer {
                             Answer::ClipboardContents(content) => {
-                                let mut ctx = ClipboardContext::new().unwrap();
-                                ctx.set_contents(content).unwrap();
+                                let Ok(mut ctx) = ClipboardContext::new() else {
+                                    warn!("Failed to get clipboard context");
+                                    continue;
+                                };
+
+                                match ctx.set_contents(content) {
+                                    Ok(_) => {}
+                                    Err(_) => {
+                                        warn!("Failed to set clipboard content");
+                                        continue;
+                                    }
+                                }
                             }
                         }
                     }
