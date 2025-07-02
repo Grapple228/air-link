@@ -24,4 +24,6 @@ tokio-tungstenite = { workspace = true }
 # Bytes serialization and deserialization
 bincode = { workspace = true }
 
-keycodes = "0.1"
+# Other
+derive_more = { workspace = true }
+cli-clipboard = { workspace = true }

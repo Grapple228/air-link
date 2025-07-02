@@ -3,9 +3,10 @@ use std::sync::Arc;
 use super::Result;
 use crate::event::AppEvent;
 use futures::{stream::SplitSink, SinkExt};
-use lib_models::{Command, MouseScroll};
+use lib_models::{clipboard, Command, MouseScroll};
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
+use tracing::warn;
 use wayland_client::{
     delegate_noop,
     protocol::{
@@ -92,6 +93,21 @@ impl State {
                 Command::MoveMouse { x, y }
             }
             AppEvent::MouseEnter { x, y } => {
+                // Send clipboard
+                let clipboard_write = write.clone();
+                tokio::spawn(async move {
+                    let Ok(content) = clipboard::get_contents() else {
+                        warn!("Failed to get clipboard contents");
+                        return;
+                    };
+
+                    _ = clipboard_write
+                        .lock()
+                        .await
+                        .send(Command::SetClipboard(content).into())
+                        .await;
+                });
+
                 let x = map_cord(*x, self.resolution_rate);
                 let y = map_cord(*y, self.resolution_rate);
 

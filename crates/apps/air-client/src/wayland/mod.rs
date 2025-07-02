@@ -3,18 +3,16 @@ mod state;
 
 use std::sync::Arc;
 
-use cli_clipboard::{ClipboardContext, ClipboardProvider};
 pub use error::{Error, Result};
 
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use lib_models::{Answer, DisplayParams};
+use lib_models::{clipboard, Answer, DisplayParams};
 use state::State;
 use tokio::{net::TcpStream, sync::Mutex};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
-use tracing::warn;
 use wayland_client::{Connection, EventQueue};
 
 /// Used for temporary display
@@ -38,12 +36,12 @@ pub async fn init_wayland(
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     target_display: &DisplayParams,
 ) -> Result<()> {
+    // Initialize Wayland
+    let mut event_queue = init_queue()?;
+
     let (write, read) = stream.split();
 
     let write = Arc::new(Mutex::new(write));
-
-    // Initialize Wayland
-    let mut event_queue = init_queue()?;
 
     println!("Starting the example window app, press <ESC> to quit.");
 
@@ -83,20 +81,7 @@ async fn handle_incoming(
                     Message::Binary(bytes) => {
                         let answer: Answer = bytes.into();
                         match answer {
-                            Answer::ClipboardContents(content) => {
-                                let Ok(mut ctx) = ClipboardContext::new() else {
-                                    warn!("Failed to get clipboard context");
-                                    continue;
-                                };
-
-                                match ctx.set_contents(content) {
-                                    Ok(_) => {}
-                                    Err(_) => {
-                                        warn!("Failed to set clipboard content");
-                                        continue;
-                                    }
-                                }
-                            }
+                            Answer::ClipboardContents(content) => clipboard::set_contents(content)?,
                         }
                     }
                     Message::Ping(bytes) => write.lock().await.send(Message::Pong(bytes)).await?,

@@ -1,11 +1,10 @@
-use air_server::{Error, Modifier, Result};
-use cli_clipboard::{ClipboardContext, ClipboardProvider};
+use air_server::{Modifier, Result};
 use enigo::{Coordinate, Enigo, Key, Keyboard, Mouse, Settings};
 use futures::{
     stream::{SplitSink, StreamExt},
     SinkExt,
 };
-use lib_models::{Answer, Command, MouseButton};
+use lib_models::{clipboard, Answer, Command, MouseButton};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -45,10 +44,7 @@ struct State {
 async fn send_clipboard(wait_ms: u64, write: Arc<Mutex<SplitSink<Stream, Message>>>) -> Result<()> {
     sleep(Duration::from_millis(wait_ms)).await;
 
-    let mut clipboard = ClipboardContext::new().map_err(|_| Error::ClipboardInit)?;
-    let content = clipboard.get_contents().map_err(|_| Error::ClipboardInit)?;
-
-    println!("Sent clipboard: {}", content);
+    let content = clipboard::get_contents()?;
 
     write
         .lock()
@@ -119,12 +115,8 @@ fn process_command(
     // println!("Processing command {:?}", command);
 
     match command {
-        Command::MoveMouse { x, y } => {
-            move_mouse(enigo, x, y, MoveType::Faster)?;
-        }
-        Command::SetMouse { x, y } => {
-            move_mouse(enigo, x, y, MoveType::Immediate)?;
-        }
+        Command::MoveMouse { x, y } => move_mouse(enigo, x, y, MoveType::Faster)?,
+        Command::SetMouse { x, y } => move_mouse(enigo, x, y, MoveType::Immediate)?,
         Command::InputText(text) => enigo.text(&text)?,
         Command::MouseButtonPressed(mouse_button) => {
             let (button, direction) = map_mouse_button(mouse_button, true);
@@ -134,11 +126,11 @@ fn process_command(
             let (button, direction) = map_mouse_button(mouse_button, false);
             enigo.button(button, direction)?
         }
-
         Command::MouseScroll(mouse_scroll) => match mouse_scroll {
             lib_models::MouseScroll::Vertical(value) => {
                 enigo.scroll(value.signum(), enigo::Axis::Vertical)?
             }
+
             lib_models::MouseScroll::Horizontal(value) => {
                 enigo.scroll(value.signum(), enigo::Axis::Horizontal)?
             }
@@ -172,7 +164,6 @@ fn process_command(
                 }
             }
         }
-
         Command::KeyReleased(keycode) => {
             let direction = enigo::Direction::Release;
 
@@ -193,6 +184,9 @@ fn process_command(
                     enigo.raw(keycode as u16, direction)?
                 }
             }
+        }
+        Command::SetClipboard(content) => {
+            clipboard::set_contents(content)?;
         }
     }
 

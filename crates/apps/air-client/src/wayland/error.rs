@@ -1,9 +1,13 @@
 use derive_more::From;
+use lib_models::clipboard;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, From)]
 pub enum Error {
+    #[from]
+    Clipboard(clipboard::Error),
+
     #[from]
     Dispatch(wayland_client::DispatchError),
 

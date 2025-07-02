@@ -33,7 +33,6 @@ tracing-subscriber = { workspace = true }
 # -- Other
 derive_more = { workspace = true }
 tempfile = "3.20"
-cli-clipboard = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Mouse and Keyboard events

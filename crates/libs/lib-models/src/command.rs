@@ -14,6 +14,7 @@ pub enum Command {
     MouseButtonPressed(MouseButton),
     MouseButtonReleased(MouseButton),
     MouseScroll(MouseScroll),
+    SetClipboard(String),
 }
 
 impl Into<Message> for &Command {

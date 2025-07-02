@@ -1,3 +1,5 @@
+pub mod clipboard;
+
 mod answer;
 mod command;
 mod display;

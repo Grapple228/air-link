@@ -36,7 +36,6 @@ tracing-subscriber = { workspace = true }
 # -- Other
 derive_more = { workspace = true }
 chrono = "0.4"
-cli-clipboard = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
