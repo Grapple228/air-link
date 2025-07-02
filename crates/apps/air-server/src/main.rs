@@ -37,8 +37,9 @@ enum AnswerType {
     Clipboard,
 }
 
-struct State {
+struct App {
     modifiers: Modifier,
+    move_type: MoveType,
 }
 
 async fn send_clipboard(wait_ms: u64, write: Arc<Mutex<SplitSink<Stream, Message>>>) -> Result<()> {
@@ -61,8 +62,9 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
         ..Default::default()
     };
     let mut enigo = Enigo::new(&settings)?;
-    let mut state = State {
+    let mut state = App {
         modifiers: Modifier::None,
+        move_type: MoveType::Immediate,
     };
 
     // Принятие WebSocket-соединения
@@ -107,7 +109,7 @@ async fn handle_connection(stream: TcpStream) -> Result<()> {
 }
 
 fn process_command(
-    state: &mut State,
+    state: &mut App,
     enigo: &mut Enigo,
     command: impl Into<Command>,
 ) -> Result<AnswerType> {
@@ -115,8 +117,12 @@ fn process_command(
     // println!("Processing command {:?}", command);
 
     match command {
-        Command::MoveMouse { x, y } => move_mouse(enigo, x, y, MoveType::Faster)?,
-        Command::SetMouse { x, y } => move_mouse(enigo, x, y, MoveType::Immediate)?,
+        Command::MoveMouse { x, y } => {
+            move_mouse(enigo, x, y, state.move_type)?;
+        }
+        Command::SetMouse { x, y } => {
+            move_mouse(enigo, x, y, MoveType::Immediate)?;
+        }
         Command::InputText(text) => enigo.text(&text)?,
         Command::MouseButtonPressed(mouse_button) => {
             let (button, direction) = map_mouse_button(mouse_button, true);
@@ -213,7 +219,7 @@ fn map_mouse_button(
     (button, direction)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[allow(unused)]
 enum MoveType {
     /// Just sets cursor into position
