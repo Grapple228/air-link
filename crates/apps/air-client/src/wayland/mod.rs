@@ -16,9 +16,9 @@ use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{Connection, EventQueue};
 
 /// Used for temporary display
-const TMP_DISPLAY_WIDTH: u32 = 1280;
+const TMP_DISPLAY_WIDTH: u32 = 1920;
 /// Used for temporary display
-const TMP_DISPLAY_HEIGHT: u32 = 720;
+const TMP_DISPLAY_HEIGHT: u32 = 1036;
 
 pub fn init_queue() -> Result<EventQueue<State>> {
     let conn = Connection::connect_to_env()?;
@@ -47,7 +47,8 @@ pub async fn init_wayland(
 
     // TODO: Only for testing since actual display will be with size of target
     // Used for modifying tmp display cords into output resolution
-    let resolution_rate = TMP_DISPLAY_WIDTH as f64 / target_display.width() as f64;
+    let x_res_rate = TMP_DISPLAY_WIDTH as f64 / target_display.width() as f64;
+    let y_res_rate = TMP_DISPLAY_HEIGHT as f64 / target_display.height() as f64;
 
     // Initialize incoming messages handler
     let incoming_write = write.clone();
@@ -55,7 +56,7 @@ pub async fn init_wayland(
         _ = handle_incoming(read, incoming_write).await;
     });
 
-    let mut state = State::new(resolution_rate);
+    let mut state = State::new(x_res_rate, y_res_rate);
     while state.is_running() {
         event_queue.blocking_dispatch(&mut state)?;
         state.handle(write.clone()).await?;

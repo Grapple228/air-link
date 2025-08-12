@@ -42,17 +42,21 @@ pub struct State {
     configured: bool,
 
     is_focus: bool,
-    resolution_rate: f64,
+
+    x_res_rate: f64,
+    y_res_rate: f64,
+
     event: AppEvent,
     x: i32,
     y: i32,
 }
 
 impl State {
-    pub fn new(resolution_rate: f64) -> Self {
+    pub fn new(x_res_rate: f64, y_res_rate: f64) -> Self {
         Self {
             running: true,
-            resolution_rate,
+            x_res_rate,
+            y_res_rate,
             base_surface: None,
             buffer: None,
             wm_base: None,
@@ -84,8 +88,8 @@ impl State {
                     return Ok(());
                 }
 
-                let x = map_cord(*x, self.resolution_rate);
-                let y = map_cord(*y, self.resolution_rate);
+                let x = map_cord(*x, self.x_res_rate);
+                let y = map_cord(*y, self.y_res_rate);
 
                 self.x = x;
                 self.y = y;
@@ -108,8 +112,8 @@ impl State {
                         .await;
                 });
 
-                let x = map_cord(*x, self.resolution_rate);
-                let y = map_cord(*y, self.resolution_rate);
+                let x = map_cord(*x, self.x_res_rate);
+                let y = map_cord(*y, self.y_res_rate);
 
                 self.x = x;
                 self.y = y;
