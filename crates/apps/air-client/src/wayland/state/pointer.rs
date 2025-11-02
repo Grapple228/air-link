@@ -92,7 +92,7 @@ impl Dispatch<WlPointer, ()> for State {
                 }
             }
             _ => {
-                println!("other");
+                // println!("other");
             }
         }
     }

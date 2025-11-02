@@ -37,7 +37,7 @@ tempfile = "3.20"
 [target.'cfg(target_os = "linux")'.dependencies]
 # Mouse and Keyboard events
 wayland-client = "0.31"
-wayland-protocols = "0.32"
+wayland-protocols = {version = "0.32", features = ["client"]}
 
 
 [dev-dependencies]

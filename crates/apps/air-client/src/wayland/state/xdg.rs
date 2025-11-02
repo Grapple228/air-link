@@ -30,7 +30,9 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for State {
         if let xdg_surface::Event::Configure { serial, .. } = event {
             xdg_surface.ack_configure(serial);
             state.configured = true;
+
             let surface = state.base_surface.as_ref().unwrap();
+
             if let Some(ref buffer) = state.buffer {
                 surface.attach(Some(buffer), 0, 0);
                 surface.commit();

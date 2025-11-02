@@ -1,7 +1,7 @@
 mod error;
 mod state;
 
-use std::sync::Arc;
+use std::{process::Stdio, sync::Arc};
 
 pub use error::{Error, Result};
 
@@ -11,14 +11,18 @@ use futures::{
 };
 use lib_models::{clipboard, Answer, DisplayParams};
 use state::State;
-use tokio::{net::TcpStream, sync::Mutex};
+use tokio::{
+    net::TcpStream,
+    process::{Child, Command},
+    sync::Mutex,
+};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use wayland_client::{Connection, EventQueue};
 
 /// Used for temporary display
-const TMP_DISPLAY_WIDTH: u32 = 1920;
+const TMP_DISPLAY_WIDTH: u32 = 2560;
 /// Used for temporary display
-const TMP_DISPLAY_HEIGHT: u32 = 1036;
+const TMP_DISPLAY_HEIGHT: u32 = 1440;
 
 pub fn init_queue() -> Result<EventQueue<State>> {
     let conn = Connection::connect_to_env()?;
@@ -27,15 +31,60 @@ pub fn init_queue() -> Result<EventQueue<State>> {
     let qhandle = event_queue.handle();
 
     let display = conn.display();
+
     _ = display.get_registry(&qhandle, ());
 
     Ok(event_queue)
+}
+
+pub async fn start_krfb_virtual(
+    target_display: &DisplayParams,
+    port: u32,
+    password: &str,
+) -> Result<Child> {
+    println!("🚀 Starting krfb-virtualmonitor...");
+
+    let name = &format!("air-virtual-0",);
+
+    let child = Command::new("krfb-virtualmonitor")
+        .args([
+            "--resolution",
+            &format!(
+                "{}x{}",
+                target_display.width() + 1,
+                target_display.height() + 1
+            ),
+            "--name",
+            &name,
+            "--port",
+            &port.to_string(),
+            "--password",
+            password,
+            "--session",
+            &format!("{name}-session"),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    println!(
+        "✅ Virtual monitor created: {} ({}x{})",
+        name,
+        target_display.width() + 1,
+        target_display.height() + 1
+    );
+
+    Ok(child)
 }
 
 pub async fn init_wayland(
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     target_display: &DisplayParams,
 ) -> Result<()> {
+    // Initialize display
+    let _display = start_krfb_virtual(&target_display, 5900, "air-client").await?;
+
     // Initialize Wayland
     let mut event_queue = init_queue()?;
 
@@ -45,18 +94,13 @@ pub async fn init_wayland(
 
     println!("Starting the example window app, press <ESC> to quit.");
 
-    // TODO: Only for testing since actual display will be with size of target
-    // Used for modifying tmp display cords into output resolution
-    let x_res_rate = TMP_DISPLAY_WIDTH as f64 / target_display.width() as f64;
-    let y_res_rate = TMP_DISPLAY_HEIGHT as f64 / target_display.height() as f64;
-
     // Initialize incoming messages handler
     let incoming_write = write.clone();
     let incoming = tokio::spawn(async move {
         _ = handle_incoming(read, incoming_write).await;
     });
 
-    let mut state = State::new(x_res_rate, y_res_rate);
+    let mut state = State::new(target_display.width() + 1, target_display.height() + 1);
     while state.is_running() {
         event_queue.blocking_dispatch(&mut state)?;
         state.handle(write.clone()).await?;

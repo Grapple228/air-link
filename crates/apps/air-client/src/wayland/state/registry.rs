@@ -7,6 +7,7 @@ use super::State;
 use wayland_client::{
     protocol::{
         wl_compositor::WlCompositor,
+        wl_output,
         wl_registry::{Event, WlRegistry},
         wl_seat::WlSeat,
         wl_shm,
@@ -37,6 +38,9 @@ impl Dispatch<WlRegistry, ()> for State {
                     if state.wm_base.is_some() && state.xdg_surface.is_none() {
                         state.init_xdg_surface(qh);
                     }
+                }
+                "wl_output" => {
+                    _ = registry.bind::<wl_output::WlOutput, _, _>(name, 1, qh, ());
                 }
                 "wl_shm" => {
                     let shm = registry.bind::<wl_shm::WlShm, _, _>(name, 1, qh, ());

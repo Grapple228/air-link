@@ -10,8 +10,8 @@ use tracing::warn;
 use wayland_client::{
     delegate_noop,
     protocol::{
-        wl_buffer::WlBuffer, wl_compositor::WlCompositor, wl_shm::WlShm, wl_shm_pool::WlShmPool,
-        wl_surface::WlSurface,
+        wl_buffer::WlBuffer, wl_compositor::WlCompositor, wl_output::WlOutput, wl_shm::WlShm,
+        wl_shm_pool::WlShmPool, wl_surface::WlSurface,
     },
     QueueHandle,
 };
@@ -20,6 +20,7 @@ use wayland_protocols::xdg::shell::client::{
 };
 
 mod keyboard;
+mod output;
 mod pointer;
 mod registry;
 mod seat;
@@ -43,20 +44,20 @@ pub struct State {
 
     is_focus: bool,
 
-    x_res_rate: f64,
-    y_res_rate: f64,
-
     event: AppEvent,
     x: i32,
     y: i32,
+
+    pending_fullscreen: bool,
+
+    target_width: u32,
+    target_height: u32,
 }
 
 impl State {
-    pub fn new(x_res_rate: f64, y_res_rate: f64) -> Self {
+    pub fn new(target_width: u32, target_height: u32) -> Self {
         Self {
             running: true,
-            x_res_rate,
-            y_res_rate,
             base_surface: None,
             buffer: None,
             wm_base: None,
@@ -66,7 +67,21 @@ impl State {
             event: AppEvent::None,
             x: 0,
             y: 0,
+            pending_fullscreen: true,
+
+            target_width,
+            target_height,
         }
+    }
+
+    pub fn try_set_fullscreen(&mut self, wl_output: &WlOutput) {
+        // if self.pending_fullscreen {
+
+        if let Some((_, top_level)) = &self.xdg_surface {
+            top_level.set_fullscreen(Some(&wl_output));
+            self.pending_fullscreen = false;
+        }
+        // }
     }
 
     pub fn is_running(&self) -> bool {
@@ -88,13 +103,10 @@ impl State {
                     return Ok(());
                 }
 
-                let x = map_cord(*x, self.x_res_rate);
-                let y = map_cord(*y, self.y_res_rate);
+                self.x = *x;
+                self.y = *y;
 
-                self.x = x;
-                self.y = y;
-
-                Command::MoveMouse { x, y }
+                Command::MoveMouse { x: *x, y: *y }
             }
             AppEvent::MouseEnter { x, y } => {
                 // Send clipboard
@@ -112,25 +124,18 @@ impl State {
                         .await;
                 });
 
-                let x = map_cord(*x, self.x_res_rate);
-                let y = map_cord(*y, self.y_res_rate);
+                self.x = *x;
+                self.y = *y;
 
-                self.x = x;
-                self.y = y;
-
-                Command::SetMouse { x, y }
+                Command::SetMouse { x: *x, y: *y }
             }
             AppEvent::MouseLeave => {
                 return Ok(());
             }
             AppEvent::MouseButtonPressed(mouse_button) => {
-                println!("Mouse {:?} pressed", mouse_button);
-
                 Command::MouseButtonPressed(mouse_button.clone())
             }
             AppEvent::MouseButtonReleased(mouse_button) => {
-                println!("Mouse {:?} released", mouse_button);
-
                 Command::MouseButtonReleased(mouse_button.clone())
             }
             AppEvent::ScrollHorizontal(value) => {
@@ -156,14 +161,11 @@ impl State {
         let toplevel = xdg_surface.get_toplevel(qh, ());
         toplevel.set_title("A fantastic window!".into());
 
+        toplevel.set_min_size(2560, 1440);
+        toplevel.set_max_size(2560, 1440);
+
         base_surface.commit();
 
         self.xdg_surface = Some((xdg_surface, toplevel));
     }
-}
-
-#[inline]
-/// TODO: TMP FUNCTION, ONLY FOR DEV
-fn map_cord(cord: i32, resolution_rate: f64) -> i32 {
-    (cord as f64 / resolution_rate) as i32
 }

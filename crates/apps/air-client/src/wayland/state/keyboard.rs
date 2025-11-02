@@ -15,8 +15,9 @@ impl Dispatch<WlKeyboard, ()> for State {
         _: &QueueHandle<Self>,
     ) {
         match event {
+            #[allow(unused)]
             Event::Keymap { format, fd, size } => {
-                println!("keymap {:?} {:?} {}", format, fd, size);
+                // println!("keymap {:?} {:?} {}", format, fd, size);
             }
             // TODO: surface can be used for every display, so I easily understand on which is my cursor
             Event::Enter { .. } => {}
@@ -38,22 +39,18 @@ impl Dispatch<WlKeyboard, ()> for State {
                     _ => {}
                 }
             }
-            Event::Modifiers {
-                mods_depressed,
-                mods_latched,
-                mods_locked,
-                ..
-            } => {
-                println!(
-                    "modifiers {} {} {} ",
-                    mods_depressed, mods_latched, mods_locked
-                );
+            Event::Modifiers { .. } => {
+                // println!(
+                //     "modifiers {} {} {} ",
+                //     mods_depressed, mods_latched, mods_locked
+                // );
             }
+            #[allow(unused)]
             Event::RepeatInfo { rate, delay } => {
-                println!("repeat {rate} {delay}");
+                // println!("repeat {rate} {delay}");
             }
             _ => {
-                println!("other");
+                // println!("other");
             }
         }
     }
