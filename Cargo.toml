@@ -15,12 +15,14 @@ unsafe_code = "forbid"
 resolver = "2"
 members = [
     # -- Apps
-    "crates/apps/air-client", 
-    "crates/apps/air-server",
+    "crates/apps/air_client",
+    "crates/apps/air_server",
 
     # -- Application Libraries
     "crates/libs/lib-codec",
-    "crates/libs/lib-models", 
+    "crates/libs/lib-models",
+    "crates/libs/lib_protocol",
+    "crates/libs/lib_quic",
 
     # -- Tools
 ]
@@ -29,11 +31,8 @@ members = [
 # My libs
 grapple_utils = { version = "*", features = ["b64", "b58", "cuuid"] }
 
-# Websocket
-tokio-tungstenite = { version = "0.27"}
-
 # Mouse and Keyboard events
-enigo = {version = "0.5", features = ["wayland"]}
+enigo = {version = "0.6", features = ["wayland"]}
 
 # Bytes serialization and deserialization
 bincode = {version = "2", features = []}
@@ -48,7 +47,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 #Other
 derive_more = {version = "1", features = ["from"] }
-cli-clipboard = "0.4.0" 
+cli-clipboard = "0.4.0"
 
 # Dev
 anyhow = "1"

@@ -18,9 +18,6 @@ grapple_utils = { workspace = true }
 # -- App Libs
 lib-codec = { path = "../../libs/lib-codec" }
 
-# Websocket
-tokio-tungstenite = { workspace = true }
-
 # Bytes serialization and deserialization
 bincode = { workspace = true }
 

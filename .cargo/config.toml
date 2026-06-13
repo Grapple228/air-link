@@ -1,17 +1,17 @@
-# Cargo config file. 
+# Cargo config file.
 # See: https://doc.rust-lang.org/cargo/reference/config.html
 
 # Environments variables set for all `cargo ...` commands.
 [env]
 
 # Scope down tracing, to filter out external lib tracing.
-RUST_LOG = ""
-SERVICE_DB_URL = "postgres://app_user:dev_only_pwd@localhost:5434/app_db"
+RUST_LOG = "info"
+ADDRESS = "192.168.0.151:54321"
 
 # -- Service Environment Variables
-# IMPORTANT: 
+# IMPORTANT:
 #   For cargo commands only.
-#   For deployed env, should be managed by container 
+#   For deployed env, should be managed by container
 #   (e.g., Kubernetes).
 
 ## -- Secrets

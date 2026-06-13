@@ -1,7 +1,7 @@
 use bincode::{Decode, Encode};
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Copy, Encode, Decode)]
 pub enum MouseButton {
     LEFT = 272,
     RIGHT = 273,
@@ -24,7 +24,7 @@ impl MouseButton {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Copy, Encode, Decode)]
 pub enum MouseScroll {
     Vertical(i32),
     Horizontal(i32),
